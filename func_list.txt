@@ -1,0 +1,24 @@
+    struct MarketOffering {
+        address contractAddress; //address of the NFT contract
+        address seller; // address that created the sale
+        address buyer; // address that bought the sale
+        address offerAddress; // address of the offerer
+        uint price; // price of the sale
+        uint tokenId;
+        uint offer; // price of the bid
+        string standard; // standard of the collection - only ERC721 and ERC1155 accepted
+        bool closed; //sale is on or finished
+    }
+
+- onERC1155Received()
+- onERC1155BatchReceived()
+- onERC721Received()
+- setFees() [onlyOwner]
+- withdrawFees() [onlyOwner]
+- createSale()
+- modifySale()
+- cancelsale()
+- buySale()
+- makeOffer()
+- acceptOffer() 
+- getOffer()
