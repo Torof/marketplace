@@ -130,21 +130,51 @@ describe("Marketplace", function () {
     await expect(global.marketplace.createSale(global.n721.address, 2, 1)).to.emit(global.marketplace, 'SaleCreated').withArgs(3, global.owner.address,2, global.n721.address,1)
   })
 
-  it("should revert with 'not owner' for a NFT erc721 and erc1155 ", async () => {
+  it("should revert with 'not owner' when an address creates a sale for a NFT (erc721) it doesn't own ", async () => {
+    await global.n721.connect(acc1).mint(2)
 
+    expect( await global.n721.ownerOf(6)).to.not.equal(global.acc2.address)
+
+    await expect(global.marketplace.connect(acc2).createSale(global.n721.address, 6, 2)).to.be.revertedWith('not owner')
   })
 
-  //create sale revert on non recognized standard
+  it("should revert with 'not owner' when an address creates a sale for a NFT (erc1155) it doesn't own ", async () => {
+    await global.n1155.connect(acc1).mint(1, 5)
 
-  //Modify sale
+    expect( await global.n1155.balanceOf(global.acc2.address, 1)).to.equal(0)
 
-  //Modify revert
+    await expect(global.marketplace.connect(acc2).createSale(global.n1155.address, 1, 2)).to.be.revertedWith('not owner')
+  })
+
+  //TODO: create sale revert on non recognized standard
+
+
+  it("it should revert with 'not seller' when an other address than the seller tries to modify it ", async () => {
+    await expect(global.marketplace.connect(acc1).modifySale(0, 2)).to.be.revertedWith("not seller")
+  })
+
+  it("Owner of a sale should be able to modify it", async () => {
+    let price1Tx = await global.marketplace.getOffer(0)
+    
+    await(global.marketplace.modifySale(0, 2))
+
+    let price2Tx = await global.marketplace.getOffer(0)
+
+    expect(price1Tx.price).to.not.equal(price2Tx.price)
+  })
+
 
   //cancelSale success with offer & without offer
-
   //cancelSale revert on closed offer
 
   //buySale success
-
   //buySale revert on wrong ether amount
+  //buySale revert on closed offer
+
+  //makeOffer
+
+  //acceptOffer
+
+  //cancelOffer
+
 });

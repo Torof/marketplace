@@ -3,7 +3,7 @@
  *@title A custodial NFT MarketPlace
  *@notice This marketplace allows the listing and selling of {ERC721} and {ERC1155} Non Fungible & Semi Fungible Tokens
  *@dev The marketplace MUST hold the NFT and the offer funds in custody.
-*/
+ */
 
 /// TODO: security
 /// TODO: gas opti
@@ -187,7 +187,7 @@ contract Marketplace is
      * @param _contractAddress the address of the NFT's contract
      * @param _tokenId of the token within its collection
      * @param _price defined by the creator/seller
-     * 
+     *
      */
     function createSale(
         address _contractAddress,
@@ -267,9 +267,7 @@ contract Marketplace is
      * @param _marketOfferId id of the sale
      * @param _newPrice the new price of the sale
      */
-    function modifySale(uint256 _marketOfferId, uint256 _newPrice)
-        external
-    {
+    function modifySale(uint256 _marketOfferId, uint256 _newPrice) external {
         require(
             msg.sender == marketOffers[_marketOfferId].seller,
             "not seller"
@@ -327,6 +325,7 @@ contract Marketplace is
             msg.value == marketOffers[_marketOfferId].price * 10e17,
             "not the right amount"
         ); /// give the exact amount to buy
+        require(!marketOffers[_marketOfferId].closed, "offer is closed");
 
         /// Fees of the marketplace
         uint256 afterFees = msg.value - ((msg.value * marketPlaceFee) / 100);
