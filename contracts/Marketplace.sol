@@ -25,7 +25,7 @@ contract Marketplace is
     ERC1155Receiver,
     Ownable
 {
-    uint256 public marketOffersNonce; /// sale id - all sales ongoing and closed
+    uint256 public marketOffersNonce = 1; /// sale id - all sales ongoing and closed
     uint256 private fees; /// All the fees gathered by the markeplace
     uint256 public marketPlaceFee; /// percentage of the fee. starts at 0, cannot be more than 10
     uint256 public minimumCancelTime = 86400 * 2; /// 48h
@@ -71,6 +71,12 @@ contract Marketplace is
      */
     event NewOffer(uint256 offerId, address offerer, uint256 offerPrice);
 
+    event RefundOffer(uint marketofferId, address offerer, uint refundAmount);
+
+    event SaleCanceled();
+
+    event OfferCanceled();
+
     struct MarketOffering {
         address contractAddress; ///address of the NFT contract
         address seller; /// address that created the sale
@@ -82,6 +88,7 @@ contract Marketplace is
         uint256 offerTime; /// time the offer was submitted. 48h minimum before offer cancelation possible
         string standard; /// standard of the collection - only ERC721 and ERC1155 accepted
         bool closed; ///sale is on or finished
+        uint offerNum;
     }
 
     /// ==========================================
@@ -194,6 +201,7 @@ contract Marketplace is
         uint256 _tokenId,
         uint256 _price
     ) external {
+        _price = _price * 10e17;
         if (
             ERC721(_contractAddress).supportsInterface(
                 type(IERC721).interfaceId
@@ -207,11 +215,12 @@ contract Marketplace is
                 address(0), /// buyer address
                 address(0), /// address of the highest offerer
                 _price, ///sale price
-                0, ///highest offer price
                 _tokenId,
+                0, ///highest offer price
                 0,
                 "ERC721", ///NFT's standard
-                false ///offer is closed
+                false, ///offer is closed
+                marketOffersNonce
             );
             collection.safeTransferFrom(msg.sender, address(this), _tokenId); ///Transfer NFT to marketplace contract for custody
             emit SaleCreated(
@@ -238,11 +247,12 @@ contract Marketplace is
                 address(0), /// buyer address
                 address(0), /// address of the highest offerer
                 _price, /// sale price
-                0, /// highest offer price
                 _tokenId, /// id of the token (cannot be fungible in this case)
+                0, /// highest offer price
                 0, /// last offer submition time
                 "ERC1155", /// NFT's standard
-                false /// offer is closed
+                false ,/// offer is closed
+                marketOffersNonce
             );
             collection.safeTransferFrom(
                 msg.sender,
@@ -270,9 +280,9 @@ contract Marketplace is
     function modifySale(uint256 _marketOfferId, uint256 _newPrice) external {
         require(
             msg.sender == marketOffers[_marketOfferId].seller,
-            "not seller"
+            "not owner"
         );
-        marketOffers[_marketOfferId].price = _newPrice;
+        marketOffers[_marketOfferId].price = _newPrice * 10e17;
     }
 
     /**
@@ -281,6 +291,7 @@ contract Marketplace is
      */
     function cancelSale(uint256 _marketOfferId) external nonReentrant {
         require(!marketOffers[_marketOfferId].closed, "offer is closed"); /// offer must still be ongoing to cancel
+        require(msg.sender == marketOffers[_marketOfferId].seller, "not owner");
 
         marketOffers[_marketOfferId].closed = true; /// sale is over
         if (marketOffers[_marketOfferId].offer != 0) {
@@ -322,7 +333,7 @@ contract Marketplace is
      */
     function buySale(uint256 _marketOfferId) external payable nonReentrant {
         require(
-            msg.value == marketOffers[_marketOfferId].price * 10e17,
+            msg.value == marketOffers[_marketOfferId].price,
             "not the right amount"
         ); /// give the exact amount to buy
         require(!marketOffers[_marketOfferId].closed, "offer is closed");
@@ -383,11 +394,12 @@ contract Marketplace is
     function makeOffer(uint256 _marketOfferId) external payable nonReentrant {
         require(
             msg.value > marketOffers[_marketOfferId].offer,
-            "not enough ether"
+            "offer too low"
         ); /// offer should be higher than previous one
         require(!marketOffers[_marketOfferId].closed, "offer not available"); ///Only if offer is still ongoing
 
         if (marketOffers[_marketOfferId].offer != 0) {
+            
             /// if already an offer, refund previous caller
             (bool sent, ) = marketOffers[_marketOfferId].offerAddress.call{
                 value: marketOffers[_marketOfferId].offer
@@ -395,7 +407,7 @@ contract Marketplace is
             require(sent, "failed to send ether");
         }
 
-        marketOffers[_marketOfferId].offer = msg.value / 10e17; ///new offer price
+        marketOffers[_marketOfferId].offer = msg.value; ///new offer price
         marketOffers[_marketOfferId].offerAddress = msg.sender; ///new caller
         marketOffers[_marketOfferId].offerTime = block.timestamp;
     }
@@ -470,10 +482,14 @@ contract Marketplace is
                 marketOffers[_marketOfferId].offerTime + minimumCancelTime,
             "48h minimum before cancel"
         );
-        marketOffers[_marketOfferId].offerAddress = address(0);
+        
+        uint refund = marketOffers[_marketOfferId].offer;
+        
         marketOffers[_marketOfferId].offer = 0;
-        (bool sent, ) = marketOffers[_marketOfferId].offerAddress.call{
-            value: marketOffers[_marketOfferId].offer
+        marketOffers[_marketOfferId].offerAddress = address(0);
+
+        (bool sent, ) = msg.sender.call{
+            value: refund
         }("");
         require(sent, "failed to send ether");
     }
@@ -492,5 +508,9 @@ contract Marketplace is
         returns (MarketOffering memory)
     {
         return marketOffers[_marketOfferId];
+    }
+
+    function retEthValue() external payable returns(uint){
+        return msg.value;
     }
 }

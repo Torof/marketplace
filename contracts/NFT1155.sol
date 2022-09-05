@@ -8,7 +8,7 @@ contract NFT1155 is ERC1155Supply{
 
 
 constructor(uint256 _amount) ERC1155("https://ipfs.io/ipfs/") {
- _mint(msg.sender, 0, _amount, "");
+ _mint(msg.sender, 1, _amount, "");
 }
 
 function mint(uint _id, uint _amount) external {
