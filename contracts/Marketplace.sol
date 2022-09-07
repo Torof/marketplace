@@ -32,7 +32,7 @@ contract Marketplace is
     mapping(uint256 => MarketOffering) private marketOffers;
 
     /**
-     *@notice Emitted when
+     *@notice Emitted when a NFT is received
      */
     event NFTReceived(
         address operator,
@@ -56,26 +56,58 @@ contract Marketplace is
     );
 
     /**
-     *@notice Emitted when
+     *@notice Emitted when a new market saleis created
      */
     event SaleCreated(
         uint256 offerId,
         address from,
         uint256 tokenId,
         address contractAddress,
+        string standard,
         uint256 price
     );
 
     /**
-     *@notice Emitted when
+     *@notice Emitted when a seller cancel its sale
      */
-    event NewOffer(uint256 offerId, address offerer, uint256 offerPrice);
+    event SaleCanceled(uint256 marketOfferId);
 
-    event RefundOffer(uint marketofferId, address offerer, uint refundAmount);
+    /**
+     *@notice Emitted when a sale is successfully concluded
+     */
+    event SaleSuccessful(
+        uint marketOfferId,
+        address seller,
+        address buyer,
+        uint price
+    );
 
-    event SaleCanceled();
+    /**
+     *@notice Emitted when a new offer is made
+     */
+    event OfferSubmitted(
+        uint256 marketOfferId,
+        address offerer,
+        uint256 offerPrice
+    );
 
-    event OfferCanceled();
+    /**
+     *@notice Emitted when a offer is cancel and refunded. cancelOffer() or makeOffer
+     */
+    event OfferRefunded(
+        uint marketofferId,
+        address previousOfferer,
+        uint refundAmount
+    );
+
+    /**
+     *@notice Emitted when a bidder cancel its offer
+     */
+    event OfferCanceled(
+        uint256 marketOfferId,
+        address offererAddress,
+        uint canceledOffer
+    );
 
     struct MarketOffering {
         address contractAddress; ///address of the NFT contract
@@ -228,6 +260,7 @@ contract Marketplace is
                 msg.sender, ///seller address
                 _tokenId,
                 _contractAddress,
+                marketOffers[marketOffersNonce].standard,
                 _price
             );
             marketOffersNonce++;
@@ -251,7 +284,7 @@ contract Marketplace is
                 0, /// highest offer price
                 0, /// last offer submition time
                 "ERC1155", /// NFT's standard
-                false ,/// offer is closed
+                false, /// offer is closed
                 marketOffersNonce
             );
             collection.safeTransferFrom(
@@ -266,6 +299,7 @@ contract Marketplace is
                 msg.sender,
                 _tokenId,
                 _contractAddress,
+                marketOffers[marketOffersNonce].standard,
                 _price
             );
             marketOffersNonce++;
@@ -278,10 +312,7 @@ contract Marketplace is
      * @param _newPrice the new price of the sale
      */
     function modifySale(uint256 _marketOfferId, uint256 _newPrice) external {
-        require(
-            msg.sender == marketOffers[_marketOfferId].seller,
-            "not owner"
-        );
+        require(msg.sender == marketOffers[_marketOfferId].seller, "not owner");
         marketOffers[_marketOfferId].price = _newPrice * 10e17;
     }
 
@@ -300,6 +331,11 @@ contract Marketplace is
                 value: marketOffers[_marketOfferId].offer
             }("");
             require(sent, "failed to send ether");
+            emit OfferRefunded(
+                _marketOfferId,
+                marketOffers[_marketOfferId].offerAddress,
+                marketOffers[_marketOfferId].offer
+            );
         }
         if (
             ERC721(marketOffers[_marketOfferId].contractAddress)
@@ -324,11 +360,12 @@ contract Marketplace is
                     ""
                 ); /// sale is canceled and erc1155 NFT sent back to its owner
         }
+        emit SaleCanceled(_marketOfferId);
     }
 
     /**
      *@notice allows anyone to buy instantly a NFT at asked price.
-     *@dev fees SHOULD be automatically soustracted
+     *@dev fees SHOULD be automatically soustracted and made offer MUST be refunded if present
      *@param _marketOfferId id of the sale
      */
     function buySale(uint256 _marketOfferId) external payable nonReentrant {
@@ -336,16 +373,30 @@ contract Marketplace is
             msg.value == marketOffers[_marketOfferId].price,
             "not the right amount"
         ); /// give the exact amount to buy
+
         require(!marketOffers[_marketOfferId].closed, "offer is closed");
+
+        if (marketOffers[_marketOfferId].offer != 0) {
+            /// if already an offer, refund previous caller
+            (bool sent1, ) = marketOffers[_marketOfferId].offerAddress.call{
+                value: marketOffers[_marketOfferId].offer
+            }("");
+            require(sent1, "failed to send ether");
+            emit OfferRefunded(
+                _marketOfferId,
+                marketOffers[_marketOfferId].offerAddress,
+                marketOffers[_marketOfferId].offer
+            );
+        }
 
         /// Fees of the marketplace
         uint256 afterFees = msg.value - ((msg.value * marketPlaceFee) / 100);
         fees += ((msg.value * marketPlaceFee) / 100);
 
-        (bool sent, ) = marketOffers[_marketOfferId].seller.call{
+        (bool sent2, ) = marketOffers[_marketOfferId].seller.call{
             value: afterFees
         }(""); /// send sale price to previous owner
-        require(sent, "failed to send ether");
+        require(sent2, "failed to send ether");
 
         marketOffers[_marketOfferId].buyer = msg.sender; /// update buyer
         marketOffers[_marketOfferId].closed = true; /// sale is closed
@@ -375,6 +426,7 @@ contract Marketplace is
                 ""
             ); /// transfer NFT ERC1155 to new owner
         else revert("not supported");
+        emit SaleSuccessful(_marketOfferId, marketOffers[_marketOfferId].seller, msg.sender, marketOffers[_marketOfferId].price);
     }
 
     // =========================================
@@ -399,17 +451,27 @@ contract Marketplace is
         require(!marketOffers[_marketOfferId].closed, "offer not available"); ///Only if offer is still ongoing
 
         if (marketOffers[_marketOfferId].offer != 0) {
-            
             /// if already an offer, refund previous caller
             (bool sent, ) = marketOffers[_marketOfferId].offerAddress.call{
                 value: marketOffers[_marketOfferId].offer
             }("");
             require(sent, "failed to send ether");
+            emit OfferRefunded(
+                _marketOfferId,
+                marketOffers[_marketOfferId].offerAddress,
+                marketOffers[_marketOfferId].offer
+            );
         }
 
         marketOffers[_marketOfferId].offer = msg.value; ///new offer price
         marketOffers[_marketOfferId].offerAddress = msg.sender; ///new caller
         marketOffers[_marketOfferId].offerTime = block.timestamp;
+
+        emit OfferSubmitted(
+            _marketOfferId,
+            marketOffers[_marketOfferId].offerAddress,
+            msg.value
+        );
     }
 
     /**
@@ -482,16 +544,16 @@ contract Marketplace is
                 marketOffers[_marketOfferId].offerTime + minimumCancelTime,
             "48h minimum before cancel"
         );
-        
+
         uint refund = marketOffers[_marketOfferId].offer;
-        
+
         marketOffers[_marketOfferId].offer = 0;
         marketOffers[_marketOfferId].offerAddress = address(0);
 
-        (bool sent, ) = msg.sender.call{
-            value: refund
-        }("");
+        (bool sent, ) = msg.sender.call{value: refund}("");
         require(sent, "failed to send ether");
+
+        emit OfferCanceled(_marketOfferId, msg.sender, refund);
     }
 
     /// ================================
@@ -508,9 +570,5 @@ contract Marketplace is
         returns (MarketOffering memory)
     {
         return marketOffers[_marketOfferId];
-    }
-
-    function retEthValue() external payable returns(uint){
-        return msg.value;
     }
 }

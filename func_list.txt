@@ -20,5 +20,6 @@
 - cancelsale()
 - buySale()
 - makeOffer()
-- acceptOffer() 
+- acceptOffer()
+- cancelOffer()
 - getOffer()

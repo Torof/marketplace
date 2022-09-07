@@ -1,6 +1,8 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
+//TODO: tests for fees
+
 describe("Marketplace", function () {
   before(async function () {
     const [owner, acc1, acc2, acc3] = await ethers.getSigners();
@@ -143,7 +145,7 @@ describe("Marketplace", function () {
 
     await expect(marketplace.createSale(n721.address, 2, 1)).to.emit(n721, 'Transfer').withArgs(owner.address, marketplace.address, 2)
 
-    await expect(marketplace.createSale(n721.address, 3, 1)).to.emit(marketplace, 'SaleCreated').withArgs(4, owner.address, 3, n721.address, ethers.utils.parseEther("1"))
+    await expect(marketplace.createSale(n721.address, 3, 1)).to.emit(marketplace, 'SaleCreated').withArgs(4, owner.address, 3, n721.address, "ERC721",ethers.utils.parseEther("1"))
   })
 
   // createSale() revert when trying to sell a {ERC721} NFT not owned
@@ -182,14 +184,14 @@ describe("Marketplace", function () {
     expect(price1Tx.price).to.not.equal(price2Tx.price)
   })
 
-  // TODO: with pending offer 
-  // cancelSale success with offer & without offer
-  it("14) it should successfully cancel a sale order", async () => {
+  
+  // cancelSale success with offer & event
+  it("14) it should successfully cancel a sale order and send a SaleCanceled event", async () => {
     let offer1 = await marketplace.getOffer(1)
 
     expect(offer1.closed).to.equal(false)
 
-    await marketplace.cancelSale(1)
+    await expect(marketplace.cancelSale(1)).to.emit(marketplace,'SaleCanceled').withArgs(1)
 
     offer1 = await marketplace.getOffer(1)
 
@@ -223,7 +225,7 @@ describe("Marketplace", function () {
 
     expect(offer3.buyer).to.equal("0x0000000000000000000000000000000000000000")
 
-    await marketplace.connect(acc1).buySale(3, { value: ethers.utils.parseEther("1.0") })
+    await expect(marketplace.connect(acc1).buySale(3, { value: ethers.utils.parseEther("1.0") })).to.emit(marketplace, "SaleSuccessful").withArgs(3, offer3.seller, acc1.address, offer3.price)
 
     offer3 = await marketplace.getOffer(3)
 
@@ -293,6 +295,7 @@ describe("Marketplace", function () {
     await expect(marketplace.connect(acc2).cancelOffer(2)).to.be.revertedWith('48h minimum before cancel');
   })
 
+  // cancelOffer() succes and refund of previous offer to bidder
   it("26) it should cancel an offer and refund bider if offer was made", async () => {
     let twodays = 60 * 60 * 24 * 2;
 
@@ -308,4 +311,14 @@ describe("Marketplace", function () {
 
     expect(offer2.offer).to.equal(0)
   })
+
+  //Setfees() revert on not owner
+
+  // setFees() success
+
+  //successful transaction with fees payout
+
+  // withdrawFees() revert on not owner
+
+  //WithdrawFees() success
 });
