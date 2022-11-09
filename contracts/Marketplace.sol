@@ -139,7 +139,7 @@ contract Marketplace is
         address from,
         uint256 tokenId,
         bytes calldata data
-    ) external override returns (bytes4) {
+        ) external override returns (bytes4) {
         emit NFTReceived(operator, from, tokenId, 1, "ERC721", data);
         return
             bytes4(
