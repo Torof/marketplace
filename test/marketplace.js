@@ -86,15 +86,11 @@ describe("Marketplace", function () {
         expect(offer1.seller).to.equal("0x0000000000000000000000000000000000000000")
       })
 
-      // it("1) it should revert with 'create offer' if NFT is sent directly to contract", async() => {
-      //   await expect(n721["safeTransferFrom(address,address,uint256)"](owner.address, marketplace.address, 1)).to.be.revertedWith('create offer')
-      // })
-
       // createSale() revert on not approved for {ERC721}
       it("2) it should revert with 'ERC721: caller is not token owner nor approved' when a submitting a new sale order without approval - ERC721 -", async () => {
         expect(await n721.ownerOf(1)).to.equal(owner.address)
 
-        await expect(marketplace.createSale(n721.address, 1, 1)).to.be.revertedWithCustomError(marketplace,'notOwner')
+        await expect(marketplace.createSale(n721.address, 1, 1)).to.be.revertedWith('ERC721: caller is not token owner nor approved')
       })
 
       // createSale() success and parameters verifications for {ERC721}
@@ -350,5 +346,14 @@ describe("Marketplace", function () {
         await marketplace.withdrawFees()
       })
     })
+    //Setfees() revert on not owner
+
+    // setFees() success
+
+    //successful transaction with fees payout
+
+    // withdrawFees() revert on not owner
+
+    //WithdrawFees() success
   })
 })
