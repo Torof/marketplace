@@ -31,6 +31,14 @@ contract Marketplace is
     uint256 public minimumCancelTime = 86400 * 2; /// 48h
     mapping(uint256 => MarketOffering) private marketOffers;
 
+    error offerClosed();
+
+    error failedToSendEther();
+
+    error notOwner();
+
+    error standardNotRecognized();
+
     /**
      *@notice Emitted when a NFT is received
      */
@@ -120,7 +128,6 @@ contract Marketplace is
         uint256 offerTime; /// time the offer was submitted. 48h minimum before offer cancelation possible
         string standard; /// standard of the collection - only ERC721 and ERC1155 accepted
         bool closed; ///sale is on or finished
-        uint offerNum;
     }
 
     /// ==========================================
@@ -213,7 +220,7 @@ contract Marketplace is
      */
     function withdrawFees() external payable onlyOwner {
         (bool sent, ) = msg.sender.call{value: fees}("");
-        require(sent, "failed to send ether");
+        if(!sent) revert failedToSendEther();
         fees = 0;
     }
 
@@ -240,20 +247,14 @@ contract Marketplace is
             )
         ) {
             ERC721 collection = ERC721(_contractAddress); ///collection address
-            require(collection.ownerOf(_tokenId) == msg.sender, "not owner"); ///creator must own NFT
-            marketOffers[marketOffersNonce] = MarketOffering(
-                _contractAddress, /// collection address
-                msg.sender, /// seller address
-                address(0), /// buyer address
-                address(0), /// address of the highest offerer
-                _price, ///sale price
-                _tokenId,
-                0, ///highest offer price
-                0,
-                "ERC721", ///NFT's standard
-                false, ///offer is closed
-                marketOffersNonce
-            );
+            if(collection.ownerOf(_tokenId) != msg.sender) revert notOwner();   ///creator must own NFT
+
+            marketOffers[marketOffersNonce].contractAddress = _contractAddress;     /// collection address
+            marketOffers[marketOffersNonce].seller = msg.sender;                    /// seller address
+            marketOffers[marketOffersNonce].price = _price;                         ///sale price
+            marketOffers[marketOffersNonce].tokenId = _tokenId;                     
+            marketOffers[marketOffersNonce].standard = "ERC721";                    ///NFT's standard
+
             collection.safeTransferFrom(msg.sender, address(this), _tokenId); ///Transfer NFT to marketplace contract for custody
             emit SaleCreated(
                 marketOffersNonce, ///id of the new offer
@@ -270,23 +271,13 @@ contract Marketplace is
             )
         ) {
             ERC1155 collection = ERC1155(_contractAddress);
-            require(
-                collection.balanceOf(msg.sender, _tokenId) >= 1,
-                "not owner"
-            );
-            marketOffers[marketOffersNonce] = MarketOffering(
-                _contractAddress, /// collection address
-                msg.sender, /// seller address
-                address(0), /// buyer address
-                address(0), /// address of the highest offerer
-                _price, /// sale price
-                _tokenId, /// id of the token (cannot be fungible in this case)
-                0, /// highest offer price
-                0, /// last offer submition time
-                "ERC1155", /// NFT's standard
-                false, /// offer is closed
-                marketOffersNonce
-            );
+            if(collection.balanceOf(msg.sender, _tokenId) < 1) revert notOwner();
+                        
+            marketOffers[marketOffersNonce].contractAddress = _contractAddress;     /// collection address
+            marketOffers[marketOffersNonce].seller = msg.sender;                    /// seller address
+            marketOffers[marketOffersNonce].price = _price;                         /// sale price
+            marketOffers[marketOffersNonce].tokenId = _tokenId;                     /// id of the token (cannot be fungible in this case)
+            marketOffers[marketOffersNonce].standard = "ERC1155";                   /// NFT's standard
             collection.safeTransferFrom(
                 msg.sender,
                 address(this),
@@ -303,7 +294,7 @@ contract Marketplace is
                 _price
             );
             marketOffersNonce++;
-        } else revert("not recognized");
+        } else revert standardNotRecognized();
     }
 
     /**
@@ -312,7 +303,7 @@ contract Marketplace is
      * @param _newPrice the new price of the sale
      */
     function modifySale(uint256 _marketOfferId, uint256 _newPrice) external {
-        require(msg.sender == marketOffers[_marketOfferId].seller, "not owner");
+        if(msg.sender != marketOffers[_marketOfferId].seller) revert notOwner();
         marketOffers[_marketOfferId].price = _newPrice * 10e17;
     }
 
@@ -321,8 +312,8 @@ contract Marketplace is
      * @param _marketOfferId id of the sale
      */
     function cancelSale(uint256 _marketOfferId) external nonReentrant {
-        require(!marketOffers[_marketOfferId].closed, "offer is closed"); /// offer must still be ongoing to cancel
-        require(msg.sender == marketOffers[_marketOfferId].seller, "not owner");
+        if(marketOffers[_marketOfferId].closed) revert offerClosed(); /// offer must still be ongoing to cancel
+        if(msg.sender != marketOffers[_marketOfferId].seller) revert notOwner();
 
         marketOffers[_marketOfferId].closed = true; /// sale is over
         if (marketOffers[_marketOfferId].offer != 0) {
@@ -374,14 +365,14 @@ contract Marketplace is
             "not the right amount"
         ); /// give the exact amount to buy
 
-        require(!marketOffers[_marketOfferId].closed, "offer is closed");
+        if(marketOffers[_marketOfferId].closed) revert offerClosed();
 
         if (marketOffers[_marketOfferId].offer != 0) {
             /// if already an offer, refund previous caller
             (bool sent1, ) = marketOffers[_marketOfferId].offerAddress.call{
                 value: marketOffers[_marketOfferId].offer
             }("");
-            require(sent1, "failed to send ether");
+            if(!sent1) revert failedToSendEther();
             emit OfferRefunded(
                 _marketOfferId,
                 marketOffers[_marketOfferId].offerAddress,
@@ -396,7 +387,7 @@ contract Marketplace is
         (bool sent2, ) = marketOffers[_marketOfferId].seller.call{
             value: afterFees
         }(""); /// send sale price to previous owner
-        require(sent2, "failed to send ether");
+        if(!sent2) revert failedToSendEther();
 
         marketOffers[_marketOfferId].buyer = msg.sender; /// update buyer
         marketOffers[_marketOfferId].closed = true; /// sale is closed
@@ -425,7 +416,7 @@ contract Marketplace is
                 1,
                 ""
             ); /// transfer NFT ERC1155 to new owner
-        else revert("not supported");
+        else revert standardNotRecognized();
         emit SaleSuccessful(_marketOfferId, marketOffers[_marketOfferId].seller, msg.sender, marketOffers[_marketOfferId].price);
     }
 
@@ -448,14 +439,12 @@ contract Marketplace is
             msg.value > marketOffers[_marketOfferId].offer,
             "offer too low"
         ); /// offer should be higher than previous one
-        require(!marketOffers[_marketOfferId].closed, "offer not available"); ///Only if offer is still ongoing
-
+        if(marketOffers[_marketOfferId].closed) revert offerClosed();          ///Only if offer is still ongoing
         if (marketOffers[_marketOfferId].offer != 0) {
-            /// if already an offer, refund previous caller
-            (bool sent, ) = marketOffers[_marketOfferId].offerAddress.call{
+            (bool sent, ) = marketOffers[_marketOfferId].offerAddress.call{    /// if already an offer, refund previous caller
                 value: marketOffers[_marketOfferId].offer
             }("");
-            require(sent, "failed to send ether");
+            if(!sent) revert failedToSendEther();
             emit OfferRefunded(
                 _marketOfferId,
                 marketOffers[_marketOfferId].offerAddress,
@@ -481,11 +470,7 @@ contract Marketplace is
      * Emits a {} event if follows IERC721 or {} event if it follows IERC1155
      */
     function acceptOffer(uint256 _marketOfferId) external nonReentrant {
-        require(
-            marketOffers[_marketOfferId].seller == msg.sender,
-            "only owner"
-        ); /// owner of the token - sale
-
+        if(marketOffers[_marketOfferId].seller != msg.sender) revert notOwner();  /// owner of the token - sale
         /// Fees of the marketplace
         uint256 afterFees = marketOffers[_marketOfferId].offer -
             ((marketOffers[_marketOfferId].offer * marketPlaceFee) / 100);

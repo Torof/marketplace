@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { helpers } = require("@nomicfoundation/hardhat-network-helpers");
 
 //TODO: tests for fees
 
@@ -158,28 +159,28 @@ describe("Marketplace", function () {
       })
 
       // createSale() revert when trying to sell a {ERC721} NFT not owned
-      it("7) it should revert with 'not owner' when an address creates a sale for a NFT (erc721) it doesn't own ", async () => {
+      it("7) it should revert with custom error 'notOwner' when an address creates a sale for a NFT (erc721) it doesn't own ", async () => {
         await n721.connect(acc1).mint(2)
 
         expect(await n721.ownerOf(6)).to.not.equal(acc2.address)
 
-        await expect(marketplace.connect(acc2).createSale(n721.address, 6, 2)).to.be.revertedWith('not owner')
+        await expect(marketplace.connect(acc2).createSale(n721.address, 6, 2)).to.be.revertedWithCustomError(marketplace,'notOwner')
       })
 
       // createSale() revert when trying to sell a {ERC1155} NFT not owned
-      it("8) it should revert with 'not owner' when an address creates a sale for a NFT (erc1155) it doesn't own ", async () => {
+      it("8) it should revert with custom error 'notOwner' when an address creates a sale for a NFT (erc1155) it doesn't own ", async () => {
         await n1155.connect(acc1).mint(1, 5)
 
         expect(await n1155.balanceOf(acc2.address, 1)).to.equal(0)
 
-        await expect(marketplace.connect(acc2).createSale(n1155.address, 1, 2)).to.be.revertedWith('not owner')
+        await expect(marketplace.connect(acc2).createSale(n1155.address, 1, 2)).to.be.revertedWithCustomError(marketplace,'notOwner')
       })
 
       //TODO: create sale revert on non recognized standard
 
       // modifySale() revert on not owner modification
       it("9) it should revert with 'not owner' when an other address than the seller tries to modify it ", async () => {
-        await expect(marketplace.connect(acc1).modifySale(1, 2)).to.be.revertedWith("not owner")
+        await expect(marketplace.connect(acc1).modifySale(1, 2)).to.be.revertedWithCustomError(marketplace,'notOwner')
       })
 
       // modifySale success
@@ -213,12 +214,12 @@ describe("Marketplace", function () {
 
         expect(offer1.closed).to.equal(true)
 
-        await expect(marketplace.cancelSale(1)).to.be.revertedWith('offer is closed')
+        await expect(marketplace.cancelSale(1)).to.be.revertedWithCustomError(marketplace, 'offerClosed')
       })
 
       // cancelSale() revert on not owner
       it("13) it should revert with 'not owner' if not the owner tries to cancel the sale", async () => {
-        await expect(marketplace.connect(acc1).cancelSale(2)).to.be.revertedWith('not owner')
+        await expect(marketplace.connect(acc1).cancelSale(2)).to.be.revertedWithCustomError(marketplace, 'notOwner')
       })
     })
 
@@ -228,6 +229,12 @@ describe("Marketplace", function () {
       it("1) it should revert if not right amount of ether is supplied", async () => {
         await expect(marketplace.connect(acc1).buySale(2, { value: ethers.utils.parseEther("0.5") })).to.be.revertedWith('not the right amount')
       })
+
+      //FIXME: test when ETH transfer failure
+      // it(" --) it should revert with custom error 'failedToSendEther' because balance is not enough", async () => {
+      //   await helpers.setBalance()
+      //   await expect(marketplace.connect(acc1).buySale(3, { value: ethers.utils.parseEther("1.0") })).to.be.revertedWithCustomError(marketplace, 'failedToSendEther')
+      // })
 
       // buySale() success
       it("2) it should succesfully buy sale order 1 and be new owner of NFT", async () => {
@@ -248,7 +255,7 @@ describe("Marketplace", function () {
 
       // buySale() revert on closed offer
       it("3) it should revert with 'offer is closed' when trying to buy an offer that is closed", async () => {
-        await expect(marketplace.buySale(3, { value: ethers.utils.parseEther("1.0") })).to.be.revertedWith("offer is closed")
+        await expect(marketplace.buySale(3, { value: ethers.utils.parseEther("1.0") })).to.be.revertedWithCustomError(marketplace, "offerClosed")
       })
 
 
@@ -286,6 +293,8 @@ describe("Marketplace", function () {
         await expect(marketplace.connect(acc2).makeOffer(5, { value: ethers.utils.parseEther("2") })).to.be.revertedWith('offer too low')
       })
 
+      //TODO: acceptOffer() revert if not owner
+
       // acceptOffer() success and refund previous bidder
       it("7) it should accept offer send funds to previous owner and transfer NFT to new owner", async () => {
         let offer5 = await marketplace.getOffer(5)
@@ -297,7 +306,7 @@ describe("Marketplace", function () {
 
       // makeOffer() revert on closed offer
       it("8) it should revert new offer if offer is closed", async () => {
-        await expect(marketplace.connect(acc2).makeOffer(5, { value: ethers.utils.parseEther("7") })).to.be.revertedWith('offer not available')
+        await expect(marketplace.connect(acc2).makeOffer(5, { value: ethers.utils.parseEther("7") })).to.be.revertedWithCustomError(marketplace, 'offerClosed')
       })
 
       // cancelOffer() should revert on minimum cancelTime not reached
