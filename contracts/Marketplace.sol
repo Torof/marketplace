@@ -134,6 +134,9 @@ contract Marketplace is
     ///    Receive & support interfaces
     /// ==========================================
 
+        fallback() external{
+            revert ("not allowed");
+        }
     /**
      * @notice         MUST be implemented to be compatible with all ERC721 standards NFTs
      * @return bytes4  function {onERC721Received} selector
@@ -147,11 +150,10 @@ contract Marketplace is
         uint256 tokenId,
         bytes calldata data
         ) external override returns (bytes4) {
+        if(tx.origin != address(this) && tx.origin == operator) revert("direct transfer not allowed"); //disallow direct transfers
         emit NFTReceived(operator, from, tokenId, 1, "ERC721", data);
         return
-            bytes4(
-                keccak256("onERC721Received(address,address,uint256,bytes)")
-            );
+            IERC721Receiver.onERC721Received.selector;
     }
 
     /**
@@ -169,13 +171,9 @@ contract Marketplace is
         uint256 value,
         bytes calldata data
     ) external override returns (bytes4) {
+        if(tx.origin != address(this) && tx.origin == operator) revert("direct transfer not allowed"); //disallow direct transfers
         emit NFTReceived(operator, from, id, value, "ERC1155", data);
-        return
-            bytes4(
-                keccak256(
-                    "onERC1155Received(address,address,uint256,uint256,bytes)"
-                )
-            );
+        return IERC1155Receiver.onERC1155Received.selector;
     }
 
     /**
@@ -194,12 +192,8 @@ contract Marketplace is
         bytes calldata data
     ) external override returns (bytes4) {
         emit BatchNFTReceived(operator, from, ids, values, "ERC1155", data);
-        return
-            bytes4(
-                keccak256(
-                    "onER1155BatchReceived(address,address,uint256[],uint256[],bytes)"
-                )
-            );
+        return IERC1155Receiver.onERC1155BatchReceived.selector;
+            
     }
 
     /// =============================================
@@ -350,7 +344,7 @@ contract Marketplace is
                     1,
                     ""
                 ); /// sale is canceled and erc1155 NFT sent back to its owner
-        }
+        } else revert standardNotRecognized();
         emit SaleCanceled(_marketOfferId);
     }
 
