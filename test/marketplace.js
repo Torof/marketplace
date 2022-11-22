@@ -87,6 +87,8 @@ describe("Marketplace", function () {
         expect(offer1.seller).to.equal("0x0000000000000000000000000000000000000000")
       })
 
+      //TODO: revert on direct NFT transfer (safeTransferFrom, transferFrom,batchTransfer, safeBatchTransfer)
+
       // createSale() revert on not approved for {ERC721}
       it("2) it should revert with 'ERC721: caller is not token owner nor approved' when a submitting a new sale order without approval - ERC721 -", async () => {
         expect(await n721.ownerOf(1)).to.equal(owner.address)
@@ -313,7 +315,7 @@ describe("Marketplace", function () {
       it("9) it should revert cancelSale() with '48h minimum before cancel'", async () => {
         await expect(marketplace.connect(acc2).makeOffer(2, { value: ethers.utils.parseEther("3") })).to.changeEtherBalances([acc2.address, marketplace.address], [ethers.utils.parseEther("-3"), ethers.utils.parseEther("3")]);
 
-        await expect(marketplace.connect(acc2).cancelOffer(2)).to.be.revertedWith('48h minimum before cancel');
+        await expect(marketplace.connect(acc2).cancelOffer(2)).to.be.revertedWith('48h min before cancel');
       })
 
       // cancelOffer() succes and refund of previous offer to bidder
@@ -352,6 +354,7 @@ describe("Marketplace", function () {
       })
 
       it("4) withdrawFees succes", async () => {
+        //TODO: get fees and check balance of owner is updated with fees, balance of contracted is substracted of fees
         await marketplace.withdrawFees()
       })
     })

@@ -25,9 +25,9 @@ contract Marketplace is
     ERC1155Receiver,
     Ownable
 {
-    uint256 public marketOffersNonce = 1; /// sale id - all sales ongoing and closed
-    uint256 private fees; /// All the fees gathered by the markeplace
-    uint256 public marketPlaceFee; /// percentage of the fee. starts at 0, cannot be more than 10
+    uint256 public marketOffersNonce = 1;         /// sale id - all sales ongoing and closed
+    uint256 private fees;                         /// All the fees gathered by the markeplace
+    uint256 public marketPlaceFee;                /// percentage of the fee. starts at 0, cannot be more than 10
     uint256 public minimumCancelTime = 86400 * 2; /// 48h
     mapping(uint256 => MarketOffering) private marketOffers;
 
@@ -47,20 +47,20 @@ contract Marketplace is
         address from,
         uint256 tokenId,
         uint256 amount,
-        string standard,
-        bytes data
+        string  standard,
+        bytes   data
     );
 
     /**
      *@notice Emitted when
      */
     event BatchNFTReceived(
-        address operator,
-        address from,
+        address   operator,
+        address   from,
         uint256[] tokenId,
         uint256[] amount,
-        string standard,
-        bytes data
+        string    standard,
+        bytes     data
     );
 
     /**
@@ -71,7 +71,7 @@ contract Marketplace is
         address from,
         uint256 tokenId,
         address contractAddress,
-        string standard,
+        string  standard,
         uint256 price
     );
 
@@ -118,16 +118,16 @@ contract Marketplace is
     );
 
     struct MarketOffering {
-        address contractAddress; ///address of the NFT contract
-        address seller; /// address that created the sale
-        address buyer; /// address that bought the sale
-        address offerAddress; /// address of the offerer
-        uint256 price; /// price of the sale
+        address contractAddress;  ///address of the NFT contract
+        address seller;           /// address that created the sale
+        address buyer;            /// address that bought the sale
+        address offerAddress;     /// address of the offerer
+        uint256 price;            /// price of the sale
         uint256 tokenId;
-        uint256 offer; /// price of the bid
-        uint256 offerTime; /// time the offer was submitted. 48h minimum before offer cancelation possible
-        string standard; /// standard of the collection - only ERC721 and ERC1155 accepted
-        bool closed; ///sale is on or finished
+        uint256 offer;            /// price of the bid
+        uint256 offerTime;        /// time the offer was submitted. 48h minimum before offer cancelation possible
+        string standard;          /// standard of the collection - only ERC721 and ERC1155 accepted
+        bool closed;              ///sale is on or finished
     }
 
     /// ==========================================
@@ -135,11 +135,11 @@ contract Marketplace is
     /// ==========================================
 
     /**
-     * @notice MUST be implemented to be compatible with all ERC721 standards NFTs
-     * @return bytes4 of function {onERC721Received} selector
+     * @notice         MUST be implemented to be compatible with all ERC721 standards NFTs
+     * @return bytes4  function {onERC721Received} selector
      * @param operator address allowed to transfer NFTs on owner's behalf
-     * @param from address the NFT comes from
-     * @param tokenId the id of the NFT within its collection
+     * @param from     address the NFT comes from
+     * @param tokenId  id of the NFT within its collection
      */
     function onERC721Received(
         address operator,
@@ -155,12 +155,12 @@ contract Marketplace is
     }
 
     /**
-     * @notice MUST be implemented to be compatible with all ERC1155 standards NFTs single transfers
-     * @return bytes4 of function {onERC1155Received} selector
+     * @notice         MUST be implemented to be compatible with all ERC1155 standards NFTs single transfers
+     * @return bytes4  of function {onERC1155Received} selector
      * @param operator address allowed to transfer NFTs on owner's behalf
-     * @param from address the NFT comes from
-     * @param id the id of the NFT within its collection
-     * @param value quantity received. Use case for Semi Fungible Tokens
+     * @param from     address the NFT comes from
+     * @param id       the id of the NFT within its collection
+     * @param value    quantity received. Use case for Semi Fungible Tokens
      */
     function onERC1155Received(
         address operator,
@@ -179,12 +179,12 @@ contract Marketplace is
     }
 
     /**
-     * @notice MUST be implemented to be compatible with all ERC1155 standards NFTs batch transfers
-     * @return bytes4 of function {onERC1155BatchReceived} selector
+     * @notice         MUST be implemented to be compatible with all ERC1155 standards NFTs batch transfers
+     * @return bytes4  of function {onERC1155BatchReceived} selector
      * @param operator address allowed to transfer NFTs on owner's behalf
-     * @param from address the NFT comes from
-     * @param ids an array of all the ids of the tokens within their collection/type
-     * @param values quantity of each received. Use case for Semi Fungible Tokens
+     * @param from     address the NFT comes from
+     * @param ids      an array of all the ids of the tokens within their collection/type
+     * @param values   quantity of each received. Use case for Semi Fungible Tokens
      */
     function onERC1155BatchReceived(
         address operator,
@@ -207,7 +207,7 @@ contract Marketplace is
     /// =============================================
 
     /**
-     *@notice set the fees. CANNOT be negative or more than 10%
+     *@notice      set the fees. CANNOT be negative or more than 10%
      *@param _fees the fee the marketplace will receive from each sale
      */
     function setFees(uint256 _fees) external onlyOwner {
@@ -229,10 +229,10 @@ contract Marketplace is
     /// ==========================================
 
     /**
-     * @notice opens a new sale of a single NFT. Supports {ERC721} and {ERC1155}. Compatible with {ERC721A}
+     * @notice                 opens a new sale of a single NFT. Supports {ERC721} and {ERC1155}. Compatible with {ERC721A}
      * @param _contractAddress the address of the NFT's contract
-     * @param _tokenId of the token within its collection
-     * @param _price defined by the creator/seller
+     * @param _tokenId         id of the token within its collection
+     * @param _price           price defined by the creator/seller
      *
      */
     function createSale(
@@ -298,9 +298,9 @@ contract Marketplace is
     }
 
     /**
-     * @notice modify the sale's price
+     * @notice               modify the sale's price
      * @param _marketOfferId id of the sale
-     * @param _newPrice the new price of the sale
+     * @param _newPrice      the new price of the sale
      */
     function modifySale(uint256 _marketOfferId, uint256 _newPrice) external {
         if(msg.sender != marketOffers[_marketOfferId].seller) revert notOwner();
@@ -308,7 +308,7 @@ contract Marketplace is
     }
 
     /**
-     * @notice cancel a sale. Will refund last offer made
+     * @notice               cancel a sale. Will refund last offer made
      * @param _marketOfferId id of the sale
      */
     function cancelSale(uint256 _marketOfferId) external nonReentrant {
@@ -321,7 +321,7 @@ contract Marketplace is
             (bool sent, ) = marketOffers[_marketOfferId].offerAddress.call{
                 value: marketOffers[_marketOfferId].offer
             }("");
-            require(sent, "failed to send ether");
+            if(!sent) revert failedToSendEther();
             emit OfferRefunded(
                 _marketOfferId,
                 marketOffers[_marketOfferId].offerAddress,
@@ -355,8 +355,8 @@ contract Marketplace is
     }
 
     /**
-     *@notice allows anyone to buy instantly a NFT at asked price.
-     *@dev fees SHOULD be automatically soustracted and made offer MUST be refunded if present
+     *@notice               allows anyone to buy instantly a NFT at asked price.
+     *@dev                  fees SHOULD be automatically soustracted and made offer MUST be refunded if present
      *@param _marketOfferId id of the sale
      */
     function buySale(uint256 _marketOfferId) external payable nonReentrant {
@@ -426,8 +426,8 @@ contract Marketplace is
 
     /**
      * @notice make an offer most likely below asked price.
-     * A new offer will be created and the previous offer will be refunded.
-     * The funds must be sent in custody and CANNOT be canceled for 48h
+     *         A new offer will be created and the previous offer will be refunded.
+     *         The funds must be sent in custody and CANNOT be canceled for 48h
      *
      *  // ================================================================================================ //
      *  //  WARNING: Once an offer is made it cannot be canceled for 48h.                                   //
@@ -464,9 +464,10 @@ contract Marketplace is
     }
 
     /**
-     * @notice a third party made an offer below the asked price and seller accepts
-     * @dev fees SHOULD be automatically soustracted
-     * @param _marketOfferId of the sale
+     * @notice               a third party made an offer below the asked price and seller accepts
+     * @dev                  fees SHOULD be automatically soustracted
+     * @param _marketOfferId id of the sale
+     * 
      * Emits a {} event if follows IERC721 or {} event if it follows IERC1155
      */
     function acceptOffer(uint256 _marketOfferId) external nonReentrant {
@@ -479,7 +480,7 @@ contract Marketplace is
         (bool sent, ) = marketOffers[_marketOfferId].seller.call{
             value: afterFees
         }("");
-        require(sent, "failed to send ether");
+        if(!sent) revert failedToSendEther();
 
         marketOffers[_marketOfferId].buyer = marketOffers[_marketOfferId]
             .offerAddress; /// update buyer
@@ -510,13 +511,14 @@ contract Marketplace is
                 1,
                 ""
             ); /// transfer NFT ERC1155 to new owner
-        else revert("Not supported");
+        else revert standardNotRecognized();
     }
 
     /**
-     * @notice cancel an offer made. MUST be 48h minimum after submission of the offer.
-     * refunds the sender of its bid
+     * @notice               cancel an offer made. MUST be 48h minimum after submission of the offer.
+     *                       refunds the sender of its bid
      * @param _marketOfferId id of the sale
+     * 
      * Emits a {} event
      */
     function cancelOffer(uint256 _marketOfferId) external nonReentrant {
@@ -527,7 +529,7 @@ contract Marketplace is
         require(
             block.timestamp >
                 marketOffers[_marketOfferId].offerTime + minimumCancelTime,
-            "48h minimum before cancel"
+            "48h min before cancel"
         );
 
         uint refund = marketOffers[_marketOfferId].offer;
@@ -536,7 +538,7 @@ contract Marketplace is
         marketOffers[_marketOfferId].offerAddress = address(0);
 
         (bool sent, ) = msg.sender.call{value: refund}("");
-        require(sent, "failed to send ether");
+        if(!sent) revert failedToSendEther();
 
         emit OfferCanceled(_marketOfferId, msg.sender, refund);
     }
@@ -546,7 +548,7 @@ contract Marketplace is
     /// ================================
 
     /**
-     * @notice get all informations of a sale order by calling its id
+     * @notice               get all informations of a sale order by calling its id
      * @param _marketOfferId id of the sale
      */
     function getOffer(uint256 _marketOfferId)
@@ -556,4 +558,7 @@ contract Marketplace is
     {
         return marketOffers[_marketOfferId];
     }
+
+    //TODO: fees getter
+    // function getFees() external view returns(uint){}
 }
