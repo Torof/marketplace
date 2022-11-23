@@ -7,6 +7,7 @@
 
 /// TODO: security
 /// TODO: gas opti
+// TODO: time to start batchoffers andbatch buying of erc1155 tokens 
 
 /// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.6;
@@ -116,6 +117,7 @@ contract Marketplace is
         uint canceledOffer
     );
 
+    //TODO:  to allow  batch transfer, needs uint[]  tokenIds and uint[] amounts
     struct MarketOffering {
         address contractAddress;  ///address of the NFT contract
         address seller;           /// address that created the sale
@@ -190,6 +192,7 @@ contract Marketplace is
         uint256[] calldata values,
         bytes calldata data
     ) external override returns (bytes4) {
+        if(tx.origin != address(this) && tx.origin == operator) revert("direct transfer not allowed"); //disallow direct transfers
         emit BatchNFTReceived(operator, from, ids, values, "ERC1155", data);
         return IERC1155Receiver.onERC1155BatchReceived.selector;
             
@@ -221,6 +224,8 @@ contract Marketplace is
     ///      Main sale
     /// ==========================================
 
+
+    //TODO: to allow  batch transfer needs  uint[] tokenIds and uint[]amounts. Makesure for ERC721 lengths are equal to 1;
     /**
      * @notice                 opens a new sale of a single NFT. Supports {ERC721} and {ERC1155}. Compatible with {ERC721A}
      * @param _contractAddress the address of the NFT's contract
