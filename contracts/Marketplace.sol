@@ -7,7 +7,6 @@
 
 /// TODO: security
 /// TODO: gas opti
-/// TODO: events & comments
 
 /// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.6;
@@ -554,5 +553,7 @@ contract Marketplace is
     }
 
     //TODO: fees getter
-    // function getFees() external view returns(uint){}
+    function getFees() external view onlyOwner returns(uint){
+        return fees;
+    }
 }

@@ -243,14 +243,6 @@ describe("Marketplace", function () {
         await expect(marketplace.connect(acc1).buySale(2, { value: ethers.utils.parseEther("0.5") })).to.be.revertedWith('not the right amount')
       })
 
-      // // FIXME: test when ETH transfer failure
-      // it(" --) it should revert with custom error 'failedToSendEther' because balance is not enough", async () => {
-      //   await helpers.setBalance(acc1.address,1000000)
-       
-      //   await expect(marketplace.connect(acc1).buySale(3, { value: ethers.utils.parseEther("1.0") })).to.be.revertedWithCustomError(marketplace, 'failedToSendEther')
-      // })
-
-
       // buySale() success
       it("2)  it should succesfully buy sale order 1 and be new owner of NFT", async () => {
         let offer3 = await marketplace.getOffer(3)
@@ -267,13 +259,10 @@ describe("Marketplace", function () {
         offer3 = await marketplace.getOffer(3)
 
         expect(offer3.buyer).to.equal(acc1.address)
-
-        let id = offer3.tokenId
-
-        expect(await n721.ownerOf(id)).to.equal(acc1.address)
+        expect(offer3.closed).to.equal(true)
+        expect(await n721.ownerOf(offer3.tokenId)).to.equal(acc1.address)
 
         await snapshot.restore()
-
         await expect(marketplace.connect(acc1).buySale(3, { value: ethers.utils.parseEther("1.0") })).to.changeEtherBalances([acc1, owner], [ethers.utils.parseEther("-1.0"), ethers.utils.parseEther("1.0")]);
       })
 
@@ -317,13 +306,13 @@ describe("Marketplace", function () {
         await expect(marketplace.connect(acc2).makeOffer(5, { value: ethers.utils.parseEther("2") })).to.be.revertedWith('offer too low')
       })
 
-      //TODO: acceptOffer() revert if not owner
-      it("--) it should revert acceptOffer() if caller is not the owner", async () => {
+      // acceptOffer() revert if not owner
+      it("7) it should revert acceptOffer() if caller is not the owner", async () => {
         await expect(marketplace.connect(acc2).acceptOffer(5)).to.be.revertedWithCustomError(marketplace, "notOwner")
       })
 
       // acceptOffer() success and refund previous bidder
-      it("7)  it should accept offer send funds to previous owner and transfer NFT to new owner", async () => {
+      it("8)  it should accept offer send funds to previous owner and transfer NFT to new owner", async () => {
         let offer5 = await marketplace.getOffer(5)
 
         await expect(marketplace.acceptOffer(5)).to.changeEtherBalances([marketplace.address, owner.address], [ethers.utils.parseEther("-3"), offer5.offer])
@@ -332,19 +321,19 @@ describe("Marketplace", function () {
       })
 
       // makeOffer() revert on closed offer
-      it("8)  it should revert new offer if offer is closed", async () => {
+      it("9)  it should revert new offer if offer is closed", async () => {
         await expect(marketplace.connect(acc2).makeOffer(5, { value: ethers.utils.parseEther("7") })).to.be.revertedWithCustomError(marketplace, 'offerClosed')
       })
 
       // cancelOffer() should revert on minimum cancelTime not reached
-      it("9)  it should revert cancelSale() with '48h minimum before cancel'", async () => {
+      it("10)  it should revert cancelSale() with '48h minimum before cancel'", async () => {
         await expect(marketplace.connect(acc2).makeOffer(2, { value: ethers.utils.parseEther("3") })).to.changeEtherBalances([acc2.address, marketplace.address], [ethers.utils.parseEther("-3"), ethers.utils.parseEther("3")]);
 
         await expect(marketplace.connect(acc2).cancelOffer(2)).to.be.revertedWith('48h min before cancel');
       })
 
       // cancelOffer() succes and refund of previous offer to bidder
-      it("10)  it should cancel an offer and refund bider if offer was made", async () => {
+      it("11)  it should cancel an offer and refund bider if offer was made", async () => {
         let twodays = 60 * 60 * 24 * 2;
 
         await ethers.provider.send('evm_increaseTime', [twodays]);
@@ -378,19 +367,11 @@ describe("Marketplace", function () {
         await expect(marketplace.connect(acc2).withdrawFees()).to.be.revertedWith('Ownable: caller is not the owner');
       })
 
+      //Check ifowner balance is updated with fee (2% of 1 eth) and market place minus fees
       it("4) withdrawFees succes", async () => {
-        //TODO: get fees and check balance of owner is updated with fees, balance of contracted is substracted of fees
-        await marketplace.withdrawFees()
+        await expect(marketplace.connect(acc1).buySale(4, { value: ethers.utils.parseEther("1") })).to.changeEtherBalances([acc1.address, owner.address], [ethers.utils.parseEther("-1"), ethers.utils.parseEther("0.98")]);
+        await expect(marketplace.withdrawFees()).to.changeEtherBalances([marketplace.address, owner.address], [ethers.utils.parseEther("-0.02"), ethers.utils.parseEther("0.02")]);
       })
     })
-    //Setfees() revert on not owner
-
-    // setFees() success
-
-    //successful transaction with fees payout
-
-    // withdrawFees() revert on not owner
-
-    //WithdrawFees() success
   })
 })
