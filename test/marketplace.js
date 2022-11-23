@@ -243,14 +243,13 @@ describe("Marketplace", function () {
         await expect(marketplace.connect(acc1).buySale(2, { value: ethers.utils.parseEther("0.5") })).to.be.revertedWith('not the right amount')
       })
 
-      //FIXME: test when ETH transfer failure
+      // // FIXME: test when ETH transfer failure
       // it(" --) it should revert with custom error 'failedToSendEther' because balance is not enough", async () => {
-      //   await helpers.setBalance(marketplace.address,0)
-      //   console.log(await ethers.provider.getBalance(marketplace.address))
+      //   await helpers.setBalance(acc1.address,1000000)
+       
       //   await expect(marketplace.connect(acc1).buySale(3, { value: ethers.utils.parseEther("1.0") })).to.be.revertedWithCustomError(marketplace, 'failedToSendEther')
       // })
 
-      //ALERT: seems like buyis not sending money to seller
 
       // buySale() success
       it("2)  it should succesfully buy sale order 1 and be new owner of NFT", async () => {
@@ -260,13 +259,22 @@ describe("Marketplace", function () {
 
         expect(offer3.buyer).to.equal("0x0000000000000000000000000000000000000000")
 
+
+
+        let snapshot = await helpers.takeSnapshot()
         await expect(marketplace.connect(acc1).buySale(3, { value: ethers.utils.parseEther("1.0") })).to.emit(marketplace, "SaleSuccessful").withArgs(3, offer3.seller, acc1.address, offer3.price)
 
         offer3 = await marketplace.getOffer(3)
 
         expect(offer3.buyer).to.equal(acc1.address)
 
-        expect(await n721.ownerOf(2)).to.equal(acc1.address)
+        let id = offer3.tokenId
+
+        expect(await n721.ownerOf(id)).to.equal(acc1.address)
+
+        await snapshot.restore()
+
+        await expect(marketplace.connect(acc1).buySale(3, { value: ethers.utils.parseEther("1.0") })).to.changeEtherBalances([acc1, owner], [ethers.utils.parseEther("-1.0"), ethers.utils.parseEther("1.0")]);
       })
 
       // buySale() revert on closed offer
@@ -310,6 +318,9 @@ describe("Marketplace", function () {
       })
 
       //TODO: acceptOffer() revert if not owner
+      it("--) it should revert acceptOffer() if caller is not the owner", async () => {
+        await expect(marketplace.connect(acc2).acceptOffer(5)).to.be.revertedWithCustomError(marketplace, "notOwner")
+      })
 
       // acceptOffer() success and refund previous bidder
       it("7)  it should accept offer send funds to previous owner and transfer NFT to new owner", async () => {
