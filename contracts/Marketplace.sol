@@ -7,7 +7,7 @@
 
 /// TODO: security
 /// TODO: gas opti
-// TODO: time to start batchoffers andbatch buying of erc1155 tokens 
+/// TODO: time to start batchoffers and batch buying of erc1155 tokens 
 
 /// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.6;
@@ -151,12 +151,13 @@ contract Marketplace is
         uint256 tokenId,
         bytes calldata data
         ) external override returns (bytes4) {
-        if(tx.origin != address(this) && tx.origin == operator) revert("direct transfer not allowed"); //disallow direct transfers
+        if(msg.sender != address(this) && tx.origin == operator) revert("direct transfer not allowed"); //disallow direct transfers
         emit NFTReceived(operator, from, tokenId, 1, "ERC721", data);
         return
             IERC721Receiver.onERC721Received.selector;
     }
 
+    //CHECK: security issues with direct transfer revert ?
     /**
      * @notice         MUST be implemented to be compatible with all ERC1155 standards NFTs single transfers
      * @return bytes4  of function {onERC1155Received} selector
@@ -172,7 +173,7 @@ contract Marketplace is
         uint256 value,
         bytes calldata data
     ) external override returns (bytes4) {
-        if(tx.origin != address(this) && tx.origin == operator) revert("direct transfer not allowed"); //disallow direct transfers
+        if(msg.sender != address(this) && tx.origin == operator) revert("direct transfer not allowed"); //disallow direct transfers
         emit NFTReceived(operator, from, id, value, "ERC1155", data);
         return IERC1155Receiver.onERC1155Received.selector;
     }
@@ -224,8 +225,8 @@ contract Marketplace is
     ///      Main sale
     /// ==========================================
 
-
     //TODO: to allow  batch transfer needs  uint[] tokenIds and uint[]amounts. Makesure for ERC721 lengths are equal to 1;
+    ///CHECK: one function createSaleor several ? => createSaleERC721, createSaleERC1155, createSaleBatch1155
     /**
      * @notice                 opens a new sale of a single NFT. Supports {ERC721} and {ERC1155}. Compatible with {ERC721A}
      * @param _contractAddress the address of the NFT's contract
@@ -238,14 +239,19 @@ contract Marketplace is
         uint256 _tokenId,
         uint256 _price
     ) external {
-        _price = _price * 10e17;
+        _price = _price * 1 ether;
         if (
             ERC721(_contractAddress).supportsInterface(
                 type(IERC721).interfaceId
             )
         ) {
+            (bool success1, bytes memory data) = _contractAddress.staticcall(abi.encodeWithSignature("ownerOf(uint256)", _tokenId));
+            if(!success1) revert("non view detected");
+            address owner = abi.decode(data, (address));
+
+            if(owner != msg.sender) revert notOwner();   ///creator must own NFT
+
             ERC721 collection = ERC721(_contractAddress); ///collection address
-            if(collection.ownerOf(_tokenId) != msg.sender) revert notOwner();   ///creator must own NFT
 
             marketOffers[marketOffersNonce].contractAddress = _contractAddress;     /// collection address
             marketOffers[marketOffersNonce].seller = msg.sender;                    /// seller address
@@ -270,7 +276,7 @@ contract Marketplace is
         ) {
             ERC1155 collection = ERC1155(_contractAddress);
             if(collection.balanceOf(msg.sender, _tokenId) < 1) revert notOwner();
-                        
+
             marketOffers[marketOffersNonce].contractAddress = _contractAddress;     /// collection address
             marketOffers[marketOffersNonce].seller = msg.sender;                    /// seller address
             marketOffers[marketOffersNonce].price = _price;                         /// sale price
@@ -302,7 +308,7 @@ contract Marketplace is
      */
     function modifySale(uint256 _marketOfferId, uint256 _newPrice) external {
         if(msg.sender != marketOffers[_marketOfferId].seller) revert notOwner();
-        marketOffers[_marketOfferId].price = _newPrice * 10e17;
+        marketOffers[_marketOfferId].price = _newPrice * 1 ether;
     }
 
     /**
@@ -557,7 +563,6 @@ contract Marketplace is
         return marketOffers[_marketOfferId];
     }
 
-    //TODO: fees getter
     function getFees() external view onlyOwner returns(uint){
         return fees;
     }
