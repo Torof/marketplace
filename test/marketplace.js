@@ -14,8 +14,13 @@ describe("Marketplace", function () {
     global.acc2 = acc2;
     global.acc3 = acc3;
 
+    const weth = await ethers.getContractFactory("WETH");
+    const WETH = await weth.deploy();
+    await WETH.deployed();
+    global.WETH = WETH
+
     const Marketplace = await ethers.getContractFactory("Marketplace");
-    const marketplace = await Marketplace.deploy();
+    const marketplace = await Marketplace.deploy(WETH.address);
     await marketplace.deployed();
     global.marketplace = marketplace
 
@@ -110,7 +115,7 @@ describe("Marketplace", function () {
 
         await n721.setApprovalForAll(marketplace.address, true)
 
-        await marketplace.createSale(n721.address, 1, 1)
+        await marketplace.createSale(n721.address, 1, ethers.utils.parseEther("1"))
 
         let offer1 = await marketplace.getSaleOrder(1)
         expect(offer1.seller).to.equal(owner.address)
@@ -139,7 +144,7 @@ describe("Marketplace", function () {
 
         await n1155.setApprovalForAll(marketplace.address, true)
 
-        await marketplace.createSale(n1155.address, 1, 1)
+        await marketplace.createSale(n1155.address, 1, ethers.utils.parseEther("1"))
 
         let offer2 = await marketplace.getSaleOrder(2)
 
@@ -163,9 +168,9 @@ describe("Marketplace", function () {
 
         await n721.setApprovalForAll(marketplace.address, true)
 
-        await expect(marketplace.createSale(n721.address, 2, 1)).to.emit(n721, 'Transfer').withArgs(owner.address, marketplace.address, 2)
+        await expect(marketplace.createSale(n721.address, 2, ethers.utils.parseEther("1"))).to.emit(n721, 'Transfer').withArgs(owner.address, marketplace.address, 2)
 
-        await expect(marketplace.createSale(n721.address, 3, 1)).to.emit(marketplace, 'SaleCreated').withArgs(4, owner.address, 3, n721.address, "ERC721", ethers.utils.parseEther("1"))
+        await expect(marketplace.createSale(n721.address, 3, ethers.utils.parseEther("1"))).to.emit(marketplace, 'SaleCreated').withArgs(4, owner.address, 3, n721.address, "ERC721", ethers.utils.parseEther("1"))
       })
 
       // createSale() revert when trying to sell a {ERC721} NFT not owned
@@ -364,13 +369,13 @@ describe("Marketplace", function () {
       })
 
       it("3) withdrawFees revert, not owner", async () => {
-        await expect(marketplace.connect(acc2).withdrawFees()).to.be.revertedWith('Ownable: caller is not the owner');
+        await expect(marketplace.connect(acc2).withdrawEthFees()).to.be.revertedWith('Ownable: caller is not the owner');
       })
 
       //Check ifowner balance is updated with fee (2% of 1 eth) and market place minus fees
       it("4) withdrawFees succes", async () => {
         await expect(marketplace.connect(acc1).buySale(4, { value: ethers.utils.parseEther("1") })).to.changeEtherBalances([acc1.address, owner.address], [ethers.utils.parseEther("-1"), ethers.utils.parseEther("0.98")]);
-        await expect(marketplace.withdrawFees()).to.changeEtherBalances([marketplace.address, owner.address], [ethers.utils.parseEther("-0.02"), ethers.utils.parseEther("0.02")]);
+        await expect(marketplace.withdrawEthFees()).to.changeEtherBalances([marketplace.address, owner.address], [ethers.utils.parseEther("-0.02"), ethers.utils.parseEther("0.02")]);
       })
     })
   })

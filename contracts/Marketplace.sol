@@ -564,6 +564,7 @@ contract Marketplace is
             _marketOfferId
         ].offers[marketOffers[_marketOfferId].offers.length - 1];
         marketOffers[_marketOfferId].offers.pop();
+        
         emit OfferCanceled(_marketOfferId, msg.sender, 0);
     }
 
