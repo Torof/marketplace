@@ -87,9 +87,9 @@ describe("Marketplace", function () {
 
       //Check no offer is yet registered
       it("1)  it should have no offers registered yet", async () => {
-        let offer1 = await marketplace.getSaleOrder(1)
+        let saleOrder1 = await marketplace.getSaleOrder(1)
 
-        expect(offer1.seller).to.equal("0x0000000000000000000000000000000000000000")
+        expect(saleOrder1.seller).to.equal("0x0000000000000000000000000000000000000000")
       })
 
       // revert on direct NFT transfer (safeTransferFrom, transferFrom,batchTransfer, safeBatchTransfer)
@@ -110,25 +110,25 @@ describe("Marketplace", function () {
       })
 
       // createSale() success and parameters verifications for {ERC721}
-      it("5)  it should create a sale and offer1 have seller, contract address, price , tokenId, standard be ERC721 and closed be false - ERC721 - ", async () => {
+      it("5)  it should create a sale and saleOrder1 have seller, contract address, price , tokenId, standard be ERC721 and closed be false - ERC721 - ", async () => {
         expect(await n721.ownerOf(1)).to.equal(owner.address)
 
         await n721.setApprovalForAll(marketplace.address, true)
 
         await marketplace.createSale(n721.address, 1, ethers.utils.parseEther("1"))
 
-        let offer1 = await marketplace.getSaleOrder(1)
-        expect(offer1.seller).to.equal(owner.address)
+        let saleOrder1 = await marketplace.getSaleOrder(1)
+        expect(saleOrder1.seller).to.equal(owner.address)
 
-        expect(offer1.contractAddress).to.equal(n721.address)
+        expect(saleOrder1.contractAddress).to.equal(n721.address)
 
-        expect(offer1.closed).to.equal(false)
+        expect(saleOrder1.closed).to.equal(false)
 
-        expect(offer1.price).to.equal(ethers.utils.parseEther("1"))
+        expect(saleOrder1.price).to.equal(ethers.utils.parseEther("1"))
 
-        expect(offer1.tokenId).to.equal(1)
+        expect(saleOrder1.tokenId).to.equal(1)
 
-        expect(offer1.standard).to.equal("ERC721")
+        expect(saleOrder1.standard).to.equal("ERC721")
       })
 
       // createSale() revert on not approved for {ERC721}
@@ -139,26 +139,26 @@ describe("Marketplace", function () {
       })
 
       // createSale() success and parameters verifications for {ERC1155}
-      it("7)  it should create a sale and offer2 have seller, contract address, price , tokenId, standard be ERC1155 and closed be false, - ERC1155 - ", async () => {
+      it("7)  it should create a sale and saleOrder2 have seller, contract address, price , tokenId, standard be ERC1155 and closed be false, - ERC1155 - ", async () => {
         expect(await n1155.balanceOf(owner.address, 1)).to.not.equal(0)
 
         await n1155.setApprovalForAll(marketplace.address, true)
 
         await marketplace.createSale(n1155.address, 1, ethers.utils.parseEther("1"))
 
-        let offer2 = await marketplace.getSaleOrder(2)
+        let saleOrder2 = await marketplace.getSaleOrder(2)
 
-        expect(offer2.seller).to.equal(owner.address)
+        expect(saleOrder2.seller).to.equal(owner.address)
 
-        expect(offer2.contractAddress).to.equal(n1155.address)
+        expect(saleOrder2.contractAddress).to.equal(n1155.address)
 
-        expect(offer2.closed).to.equal(false)
+        expect(saleOrder2.closed).to.equal(false)
 
-        expect(offer2.price).to.equal(ethers.utils.parseEther("1"))
+        expect(saleOrder2.price).to.equal(ethers.utils.parseEther("1"))
 
-        expect(offer2.tokenId).to.equal(1)
+        expect(saleOrder2.tokenId).to.equal(1)
 
-        expect(offer2.standard).to.equal("ERC1155")
+        expect(saleOrder2.standard).to.equal("ERC1155")
       })
 
 
@@ -215,22 +215,22 @@ describe("Marketplace", function () {
 
       // cancelSale success with offer & event
       it("13) it should successfully cancel a sale order and send a SaleCanceled event", async () => {
-        let offer1 = await marketplace.getSaleOrder(1)
+        let saleOrder1 = await marketplace.getSaleOrder(1)
 
-        expect(offer1.closed).to.equal(false)
+        expect(saleOrder1.closed).to.equal(false)
 
         await expect(marketplace.cancelSale(1)).to.emit(marketplace, 'SaleCanceled').withArgs(1)
 
-        offer1 = await marketplace.getSaleOrder(1)
+        saleOrder1 = await marketplace.getSaleOrder(1)
 
-        expect(offer1.closed).to.equal(true)
+        expect(saleOrder1.closed).to.equal(true)
       })
 
       // cancelSale() revert on offer closed
       it("14) it should revert if sale is already closed", async () => {
-        let offer1 = await marketplace.getSaleOrder(1)
+        let saleOrder1 = await marketplace.getSaleOrder(1)
 
-        expect(offer1.closed).to.equal(true)
+        expect(saleOrder1.closed).to.equal(true)
 
         await expect(marketplace.cancelSale(1)).to.be.revertedWithCustomError(marketplace, 'offerClosed')
       })
@@ -250,22 +250,22 @@ describe("Marketplace", function () {
 
       // buySale() success
       it("2)  it should succesfully buy sale order 1 and be new owner of NFT", async () => {
-        let offer3 = await marketplace.getSaleOrder(3)
+        let saleOrder3 = await marketplace.getSaleOrder(3)
 
-        expect(offer3.seller).to.equal(owner.address)
+        expect(saleOrder3.seller).to.equal(owner.address)
 
-        expect(offer3.buyer).to.equal("0x0000000000000000000000000000000000000000")
+        expect(saleOrder3.buyer).to.equal("0x0000000000000000000000000000000000000000")
 
 
 
         let snapshot = await helpers.takeSnapshot()
-        await expect(marketplace.connect(acc1).buySale(3, { value: ethers.utils.parseEther("1.0") })).to.emit(marketplace, "SaleSuccessful").withArgs(3, offer3.seller, acc1.address, offer3.price)
+        await expect(marketplace.connect(acc1).buySale(3, { value: ethers.utils.parseEther("1.0") })).to.emit(marketplace, "SaleSuccessful").withArgs(3, saleOrder3.seller, acc1.address, saleOrder3.price)
 
-        offer3 = await marketplace.getSaleOrder(3)
+        saleOrder3 = await marketplace.getSaleOrder(3)
 
-        expect(offer3.buyer).to.equal(acc1.address)
-        expect(offer3.closed).to.equal(true)
-        expect(await n721.ownerOf(offer3.tokenId)).to.equal(acc1.address)
+        expect(saleOrder3.buyer).to.equal(acc1.address)
+        expect(saleOrder3.closed).to.equal(true)
+        expect(await n721.ownerOf(saleOrder3.tokenId)).to.equal(acc1.address)
 
         await snapshot.restore()
         await expect(marketplace.connect(acc1).buySale(3, { value: ethers.utils.parseEther("1.0") })).to.changeEtherBalances([acc1, owner], [ethers.utils.parseEther("-1.0"), ethers.utils.parseEther("1.0")]);
@@ -276,58 +276,75 @@ describe("Marketplace", function () {
         await expect(marketplace.buySale(3, { value: ethers.utils.parseEther("1.0") })).to.be.revertedWithCustomError(marketplace, "offerClosed")
       })
 
+      //TODO: makeOffer() revert 'with not enough balance'
 
-      // makeOffer() success without previous pending offer
+      //TODO: makeoffer() revert not enough allowance
+
+      // makeOffer() success
       it("4)  it should sucesfully submit an offer", async () => {
-
+        await WETH.mint(acc1.address, 100)
+        await WETH.connect(acc1).approve(marketplace.address, 10)
         //creates a new sale
         await marketplace.createSale(n721.address, 4, 4)
 
-        await expect(marketplace.connect(acc1).makeOffer(5, { value: ethers.utils.parseEther("2") })).to.changeEtherBalances([acc1.address, marketplace.address], [ethers.utils.parseEther("-2"), ethers.utils.parseEther("2")]);
+        await marketplace.connect(acc1).makeOffer(5, 2 , 2 * 60 * 60)
 
-        let offer5 = await marketplace.getSaleOrder(5)
+        let saleOrder5 = await marketplace.getSaleOrder(5)
+        let offer1 = saleOrder5.offers[0]
 
-        expect(offer5.offer).to.not.equal(0)
+        expect(offer1.amount).to.not.equal(0)
 
-        expect(offer5.offerAddress).to.equal(acc1.address)
+        expect(offer1.sender).to.equal(acc1.address)
       })
 
       // makeOffer() success with previous pending offer
-      it("5)  it should successfuly accept new offer. Offerer should be debited &previous offerer refunded", async () => {
-        let offer5 = await marketplace.getSaleOrder(5)
+      it("5)  it should successfuly accept new offer. ", async () => {
+        await WETH.mint(acc2.address, 100)
+        await WETH.connect(acc2).approve(marketplace.address, 10000000000)
+        await marketplace.connect(acc2).makeOffer(5, 5, 2*60*60)
 
-        await expect(marketplace.connect(acc2).makeOffer(5, { value: ethers.utils.parseEther("3") })).to.changeEtherBalances([acc2.address, acc1.address], [ethers.utils.parseEther("-3"), offer5.offer]);
+        let saleOrder5 = await marketplace.getSaleOrder(5)
+        let offer2 = saleOrder5.offers[1]
+        expect(offer2.amount).to.not.equal(0)
 
-        offer5 = await marketplace.getSaleOrder(5)
-
-        expect(offer5.offer).to.not.equal(0)
-
-        expect(offer5.offerAddress).to.equal(acc2.address)
+        expect(offer2.sender).to.equal(acc2.address)
 
       })
 
       // makeOffer() revert on unsufficient amount bided
-      it("6)  it should revert on new offer lower than previous one", async () => {
-        await expect(marketplace.connect(acc2).makeOffer(5, { value: ethers.utils.parseEther("2") })).to.be.revertedWith('offer too low')
+      it("6)  it should revert on new offer if amount is zero", async () => {
+        await expect(marketplace.connect(acc2).makeOffer(5, 0, 2*60*60)).to.be.revertedWith("amount can't be zero")
       })
 
       // acceptOffer() revert if not owner
       it("7) it should revert acceptOffer() if caller is not the owner", async () => {
-        await expect(marketplace.connect(acc2).acceptOffer(5)).to.be.revertedWithCustomError(marketplace, "notOwner")
+        await expect(marketplace.connect(acc2).acceptOffer(5,1)).to.be.revertedWithCustomError(marketplace, "notOwner")
       })
 
-      // acceptOffer() success and refund previous bidder
-      it("8)  it should accept offer send funds to previous owner and transfer NFT to new owner", async () => {
-        let offer5 = await marketplace.getSaleOrder(5)
+      //TODO: acceptOffer() revert if offer expired
 
-        await expect(marketplace.acceptOffer(5)).to.changeEtherBalances([marketplace.address, owner.address], [ethers.utils.parseEther("-3"), offer5.offer])
+      // acceptOffer() success
+      it("8)  it should accept offer send funds to seller and transfer NFT to new owner", async () => {
+        let offer5 = await marketplace.getSaleOrder(5)
+        console.log(offer5.offers[1].sender)
+        console.log(acc2.address)
+        console.log(offer5.offers[1].amount)
+        console.log(await WETH.allowance(acc2.address, marketplace.address))
+
+        await expect(marketplace.acceptOffer(5,1)).to.changeTokenBalance(
+          WETH,
+          owner,
+          1
+        );
 
         expect(await n721.ownerOf(4)).to.equal(acc2.address)
       })
 
       // makeOffer() revert on closed offer
       it("9)  it should revert new offer if offer is closed", async () => {
-        await expect(marketplace.connect(acc2).makeOffer(5, { value: ethers.utils.parseEther("7") })).to.be.revertedWithCustomError(marketplace, 'offerClosed')
+        await WETH.mint(acc2.address, 100)
+        await WETH.connect(acc2).approve(marketplace.address, 10)
+        await expect(marketplace.connect(acc2).makeOffer(5, 1, 5 * 60 * 60)).to.be.revertedWithCustomError(marketplace, 'offerClosed')
       })
 
       // cancelOffer() should revert on minimum cancelTime not reached
@@ -347,11 +364,11 @@ describe("Marketplace", function () {
 
         await expect(marketplace.connect(acc2).cancelOffer(2)).to.changeEtherBalances([marketplace.address, acc2.address], [ethers.utils.parseEther("-3"), ethers.utils.parseEther("3")]);
 
-        let offer2 = await marketplace.getSaleOrder(2)
+        let saleOrder2 = await marketplace.getSaleOrder(2)
 
-        expect(offer2.closed).to.equal(false)
+        expect(saleOrder2.closed).to.equal(false)
 
-        expect(offer2.offer).to.equal(0)
+        expect(saleOrder2.offer).to.equal(0)
       })
     })
     describe("_Fees_", async ()=> {

@@ -457,19 +457,19 @@ contract Marketplace is
         external
         nonReentrant
     {
+        require(_amount > 0, "amount can't be zero");
         if (marketOffers[_marketOfferId].closed) revert offerClosed(); ///Only if offer is still ongoing
-
         require(
             WETH.allowance(msg.sender, address(this)) >= _amount,
-            "not enough balance"
+            "not enough balance allowed"
         );
 
-        Offer memory temp = marketOffers[_marketOfferId].offers.push(); ///new offer price
+        Offer memory temp; ///new offer price
         temp.sender = msg.sender; ///new caller
         temp.offerTime = block.timestamp;
         temp.amount = _amount;
         temp.duration = _duration;
-
+        marketOffers[_marketOfferId].offers.push(temp);
         emit OfferSubmitted(_marketOfferId, msg.sender, _amount);
     }
 
@@ -484,16 +484,19 @@ contract Marketplace is
         external
         nonReentrant
     {
+        Offer memory offer = marketOffers[_marketOfferId].offers[_index];
+
         if (marketOffers[_marketOfferId].seller != msg.sender)
             revert notOwner(); /// owner of the token - sale
-
+        //TODO: _index is not out of bound
+        require(_index < marketOffers[_marketOfferId].offers.length, "index out of bound");
+        //TODO: require offerNotexpired 
         //TODO: require balance of caller is enough
         require(
-            WETH.allowance(msg.sender, address(this)) >=
+            WETH.allowance(offer.sender, address(this)) >=
                 marketOffers[_marketOfferId].offers[_index].amount,
             "not enough allowance"
         );
-        Offer memory offer = marketOffers[_marketOfferId].offers[_index];
 
         marketOffers[_marketOfferId].buyer = offer.sender; /// update buyer
         marketOffers[_marketOfferId].price = offer.amount; /// update sell price
