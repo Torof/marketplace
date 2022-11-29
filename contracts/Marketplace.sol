@@ -583,6 +583,22 @@ contract Marketplace is
             require(success);
         }
 
+        // TODO: allow contract to send back NFT
+        function unlockNFT(address _contract, uint[] calldata _tokenIds, address _to, uint _standard ) external {
+            require(_standard < 4, "not recognized");
+            if(_standard == 1) {
+                require(_tokenIds.length == 1, "index out of bounds");
+                uint _id = _tokenIds[0];
+                ERC721(_contract).safeTransferFrom(address(this), _to, _tokenIds[0]);}
+            else if(_standard == 2) {
+                require(_tokenIds.length == 1, "index out of bounds");
+                uint _id = _tokenIds[0];
+                }
+            else if(_standard == 3) {
+                uint[] memory _ids = _tokenIds;
+                }
+        }
+
 
     /// ================================
     ///       Getters
