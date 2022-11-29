@@ -1,15 +1,17 @@
 /**
  *@author Torof
  *@title A custodial NFT MarketPlace
- *@notice This marketplace allows the listing and selling of {ERC721} and {ERC1155} Non Fungible & Semi Fungible Tokens
- *@dev The marketplace MUST hold the NFT and the offer funds in custody.
+ *@notice This marketplace allows the listing and selling of {ERC721} and {ERC1155} Non Fungible & Semi Fungible Tokens.
+ *@dev The marketplace MUST hold the NFT in custody. Offers follow a non custodial model using Wrapped Ethereum. 
+*      Sender needs to have sufficiant WETH funds to submit offer. 
+*      Showing the onGoing offers and not the expired offers must happen on the front-end.
  */
 
 /// TODO: security
 /// TODO: gas opti
 /// TODO: time to start batchoffers and batch buying of erc1155 tokens
 /// TODO: change offerModel
-///TODO: add WETH transfers
+/// TODO: add WETH transfers
 
 /// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.6;
@@ -29,12 +31,13 @@ contract Marketplace is
     Ownable
 {
     uint256 public marketOffersNonce = 1; /// sale id - all sales ongoing and closed
-    uint256 private fees; /// All the fees gathered by the markeplace
+    uint256 private ethFees; /// All the fees gathered by the markeplace
     uint256 private wethFees;
     uint256 public marketPlaceFee; /// percentage of the fee. starts at 0, cannot be more than 10
     uint256 public minimumCancelTime = 2 days; /// 48h
     ERC20 public immutable WETH;
     mapping(uint256 => SaleOrder) private marketOffers;
+    mapping(address => uint256 ) public balanceOfEth;
 
     error offerClosed();
 
@@ -124,22 +127,19 @@ contract Marketplace is
 
     //TODO:  to allow  batch transfer, needs uint[]  tokenIds and uint[] amounts
     struct SaleOrder {
+        uint256 price; /// price of the sale
+        uint256 tokenId;
         address contractAddress; ///address of the NFT contract
         address seller; /// address that created the sale
         address buyer; /// address that bought the sale
-        // address offerAddress;     /// address of the offerer
-        uint256 price; /// price of the sale
-        uint256 tokenId;
-        // uint256 offer;            /// price of the bid
-        Offer[] offers; /// an array of all the offers
-        // uint256 offerTime;        /// time the offer was submitted. 48h minimum before offer cancelation possible
         string standard; /// standard of the collection - only ERC721 and ERC1155 accepted
         bool closed; ///sale is on or finished
+        Offer[] offers; /// an array of all the offers
     }
 
     struct Offer {
         address sender;
-        uint amount;
+        uint offerPrice;
         uint duration;
         uint offerTime;
     }
@@ -151,6 +151,10 @@ contract Marketplace is
     /// ==========================================
     ///    Receive & support interfaces
     /// ==========================================
+
+    receive() payable external {
+        balanceOfEth[msg.sender] = msg.value;
+    }
 
     fallback() external {
         revert("not allowed");
@@ -170,12 +174,11 @@ contract Marketplace is
         bytes calldata data
     ) external override returns (bytes4) {
         if (msg.sender != address(this) && tx.origin == operator)
-            revert("direct transfer not allowed"); //disallow direct transfers
+            revert("direct transfer not allowed"); //disallow direct transfers with safeTransferFrom()
         emit NFTReceived(operator, from, tokenId, 1, "ERC721", data);
         return IERC721Receiver.onERC721Received.selector;
     }
 
-    //CHECK: security issues with direct transfer revert ?
     /**
      * @notice         MUST be implemented to be compatible with all ERC1155 standards NFTs single transfers
      * @return bytes4  of function {onERC1155Received} selector
@@ -235,9 +238,9 @@ contract Marketplace is
      * @notice withdraw all gains in ETH made from the sales fees all at once.
      */
     function withdrawEthFees() external payable onlyOwner {
-        (bool sent, ) = msg.sender.call{value: fees}("");
+        (bool sent, ) = msg.sender.call{value: ethFees}("");
         if (!sent) revert failedToSendEther();
-        fees = 0;
+        ethFees = 0;
     }
 
     /**
@@ -398,7 +401,7 @@ contract Marketplace is
 
         /// Fees of the marketplace
         uint256 afterFees = msg.value - ((msg.value * marketPlaceFee) / 100);
-        fees += ((msg.value * marketPlaceFee) / 100);
+        ethFees += ((msg.value * marketPlaceFee) / 100);
 
         (bool sent2, ) = marketOffers[_marketOfferId].seller.call{
             value: afterFees
@@ -467,7 +470,7 @@ contract Marketplace is
         Offer memory temp; ///new offer price
         temp.sender = msg.sender; ///new caller
         temp.offerTime = block.timestamp;
-        temp.amount = _amount;
+        temp.offerPrice = _amount;
         temp.duration = _duration;
         marketOffers[_marketOfferId].offers.push(temp);
         emit OfferSubmitted(_marketOfferId, msg.sender, _amount);
@@ -486,21 +489,19 @@ contract Marketplace is
     {
         Offer memory offer = marketOffers[_marketOfferId].offers[_index];
 
-        if (marketOffers[_marketOfferId].seller != msg.sender)
-            revert notOwner(); /// owner of the token - sale
-        //TODO: _index is not out of bound
+        if (marketOffers[_marketOfferId].seller != msg.sender) revert notOwner();             /// owner of the token - sale
         require(_index < marketOffers[_marketOfferId].offers.length, "index out of bound");
         //TODO: require offerNotexpired 
         //TODO: require balance of caller is enough
         require(
             WETH.allowance(offer.sender, address(this)) >=
-                marketOffers[_marketOfferId].offers[_index].amount,
+                marketOffers[_marketOfferId].offers[_index].offerPrice,
             "not enough allowance"
         );
 
-        marketOffers[_marketOfferId].buyer = offer.sender; /// update buyer
-        marketOffers[_marketOfferId].price = offer.amount; /// update sell price
-        marketOffers[_marketOfferId].closed = true; /// offer is now over
+        marketOffers[_marketOfferId].buyer = offer.sender;                                    /// update buyer
+        marketOffers[_marketOfferId].price = offer.offerPrice;                                    /// update sell price
+        marketOffers[_marketOfferId].closed = true;                                           /// offer is now over
 
         SaleOrder memory marketOrder = marketOffers[_marketOfferId];
 
@@ -529,9 +530,9 @@ contract Marketplace is
         else revert standardNotRecognized();
 
         /// Fees of the marketplace
-        uint256 afterFees = offer.amount -
-            ((offer.amount * marketPlaceFee) / 100);
-        fees += (offer.amount * marketPlaceFee) / 100;
+        uint256 afterFees = offer.offerPrice -
+            ((offer.offerPrice * marketPlaceFee) / 100);
+        wethFees += (offer.offerPrice * marketPlaceFee) / 100;
 
         bool sent1 = ERC20(WETH).transferFrom(
             msg.sender,
@@ -543,7 +544,7 @@ contract Marketplace is
         bool sent2 = ERC20(WETH).transferFrom(
             msg.sender,
             address(this),
-            (offer.amount * marketPlaceFee) / 100
+            (offer.offerPrice * marketPlaceFee) / 100
         );
         if (!sent2) revert failedToSendEther();
     }
@@ -571,6 +572,18 @@ contract Marketplace is
         emit OfferCanceled(_marketOfferId, msg.sender, 0);
     }
 
+    /// ===============================
+    ///         Security fallbacks
+    /// ===============================
+
+        function withdrawEth() external{
+            uint amount = balanceOfEth[msg.sender];
+            delete balanceOfEth[msg.sender];
+            (bool success,) = msg.sender.call{value: amount}("");
+            require(success);
+        }
+
+
     /// ================================
     ///       Getters
     /// ================================
@@ -587,7 +600,12 @@ contract Marketplace is
         return marketOffers[_marketOfferId];
     }
 
-    function getFees() external view onlyOwner returns (uint) {
-        return fees;
+
+    function getEthFees() external view onlyOwner returns (uint) {
+        return ethFees;
+    }
+
+    function getWEthFees() external view onlyOwner returns (uint) {
+        return wethFees;
     }
 }

@@ -1,5 +1,5 @@
 # Reentrancy guard
-
+ OZ contracts implemented
 # check effet pattern
 
 # pull over push
@@ -11,5 +11,7 @@
 # IERC165 isSupportedInterface
 
 # ERC721 & ERC1155 Receivers
-
+ revert on NFT transfers with safeTransferFrom()
 # fallback
+
+# receive
