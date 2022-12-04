@@ -30,6 +30,9 @@ contract Marketplace is
     ERC1155Receiver,
     Ownable
 {
+    bytes4 constant public ERC_721 = bytes4(keccak256("ERC721"));
+    bytes4 constant public ERC_1155 = bytes4(keccak256("ERC721"));
+    bytes4 constant public ERC_1155_BATCH = bytes4(keccak256("ERC721"));
     uint256 public marketOffersNonce = 1; /// sale id - all sales ongoing and closed
     uint256 private ethFees; /// All the fees gathered by the markeplace
     uint256 private wethFees;
@@ -535,14 +538,14 @@ contract Marketplace is
         wethFees += (offer.offerPrice * marketPlaceFee) / 100;
 
         bool sent1 = ERC20(WETH).transferFrom(
+            marketOffers[_marketOfferId].offers[_index].sender,
             msg.sender,
-            marketOffers[_marketOfferId].seller,
             afterFees
         );
         if (!sent1) revert failedToSendEther();
 
         bool sent2 = ERC20(WETH).transferFrom(
-            msg.sender,
+            marketOffers[_marketOfferId].offers[_index].sender,
             address(this),
             (offer.offerPrice * marketPlaceFee) / 100
         );
@@ -583,20 +586,9 @@ contract Marketplace is
             require(success);
         }
 
-        // TODO: allow contract to send back NFT
-        function unlockNFT(address _contract, uint[] calldata _tokenIds, address _to, uint _standard ) external {
-            require(_standard < 4, "not recognized");
-            if(_standard == 1) {
-                require(_tokenIds.length == 1, "index out of bounds");
-                uint _id = _tokenIds[0];
-                ERC721(_contract).safeTransferFrom(address(this), _to, _tokenIds[0]);}
-            else if(_standard == 2) {
-                require(_tokenIds.length == 1, "index out of bounds");
-                uint _id = _tokenIds[0];
-                }
-            else if(_standard == 3) {
-                uint[] memory _ids = _tokenIds;
-                }
+        // TODO: allow contract to send back NFT. Only ERC721 allows unsafe transfers
+        function unlockNFT(address _contract, uint _tokenId, address _to ) external onlyOwner {
+                ERC721(_contract).safeTransferFrom(address(this), _to, _tokenId);
         }
 
 
