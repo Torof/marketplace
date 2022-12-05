@@ -9,9 +9,7 @@
 
 /// TODO: security
 /// TODO: gas opti
-/// TODO: time to start batchoffers and batch buying of erc1155 tokens
-/// TODO: change offerModel
-/// TODO: add WETH transfers
+
 
 /// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.6;
@@ -30,17 +28,34 @@ contract Marketplace is
     ERC1155Receiver,
     Ownable
 {
-    bytes4 constant public ERC_721 = bytes4(keccak256("ERC721"));
-    bytes4 constant public ERC_1155 = bytes4(keccak256("ERC721"));
-    bytes4 constant public ERC_1155_BATCH = bytes4(keccak256("ERC721"));
-    uint256 public marketOffersNonce = 1; /// sale id - all sales ongoing and closed
-    uint256 private ethFees; /// All the fees gathered by the markeplace
-    uint256 private wethFees;
-    uint256 public marketPlaceFee; /// percentage of the fee. starts at 0, cannot be more than 10
-    uint256 public minimumCancelTime = 2 days; /// 48h
-    ERC20 public immutable WETH;
-    mapping(uint256 => SaleOrder) private marketOffers;
-    mapping(address => uint256 ) public balanceOfEth;
+    // bytes4 constant public                  ERC_721 = bytes4(keccak256("ERC721"));
+    // bytes4 constant public                  ERC_1155 = bytes4(keccak256("ERC721"));
+    // bytes4 constant public                  ERC_1155_BATCH = bytes4(keccak256("ERC721"));
+    uint256 public                          marketOffersNonce = 1; /// sale id - all sales ongoing and closed
+    uint256 private                         ethFees; /// All the fees gathered by the markeplace
+    uint256 private                         wethFees;
+    uint256 public                          marketPlaceFee; /// percentage of the fee. starts at 0, cannot be more than 10
+    ERC20 public immutable                  WETH;
+    mapping(uint256 => SaleOrder) private   marketOffers;
+    mapping(address => uint256 ) public     balanceOfEth;
+
+    struct SaleOrder {
+        uint256 price; /// price of the sale
+        uint256 tokenId;
+        address contractAddress; ///address of the NFT contract
+        address seller; /// address that created the sale
+        address buyer; /// address that bought the sale
+        string standard; /// standard of the collection - only ERC721 and ERC1155 accepted
+        bool closed; ///sale is on or finished
+        Offer[] offers; /// an array of all the offers
+    }
+
+    struct Offer {
+        address sender;
+        uint offerPrice;
+        uint duration;
+        uint offerTime;
+    }
 
     error offerClosed();
 
@@ -62,18 +77,7 @@ contract Marketplace is
         bytes data
     );
 
-    /**
-     *@notice Emitted when
-     */
-    event BatchNFTReceived(
-        address operator,
-        address from,
-        uint256[] tokenId,
-        uint256[] amount,
-        string standard,
-        bytes data
-    );
-
+    event BatchNFTReceived(address _operator, address _from, uint[] ids,uint[] values,string standard,bytes data);
     /**
      *@notice Emitted when a new market saleis created
      */
@@ -111,15 +115,6 @@ contract Marketplace is
     );
 
     /**
-     *@notice Emitted when a offer is cancel and refunded. cancelOffer() or makeOffer
-     */
-    event OfferRefunded(
-        uint marketofferId,
-        address previousOfferer,
-        uint refundAmount
-    );
-
-    /**
      *@notice Emitted when a bidder cancel its offer
      */
     event OfferCanceled(
@@ -128,24 +123,6 @@ contract Marketplace is
         uint canceledOffer
     );
 
-    //TODO:  to allow  batch transfer, needs uint[]  tokenIds and uint[] amounts
-    struct SaleOrder {
-        uint256 price; /// price of the sale
-        uint256 tokenId;
-        address contractAddress; ///address of the NFT contract
-        address seller; /// address that created the sale
-        address buyer; /// address that bought the sale
-        string standard; /// standard of the collection - only ERC721 and ERC1155 accepted
-        bool closed; ///sale is on or finished
-        Offer[] offers; /// an array of all the offers
-    }
-
-    struct Offer {
-        address sender;
-        uint offerPrice;
-        uint duration;
-        uint offerTime;
-    }
 
     constructor(address _WETH) {
         WETH = ERC20(_WETH);
@@ -263,8 +240,7 @@ contract Marketplace is
     ///      Main sale
     /// ==========================================
 
-    //TODO: to allow  batch transfer needs  uint[] tokenIds and uint[]amounts. Makesure for ERC721 lengths are equal to 1;
-    ///CHECK: one function createSaleor several ? => createSaleERC721, createSaleERC1155, createSaleBatch1155
+    ///CHECK: one function createSale or several ? => createSaleERC721, createSaleERC1155, createSaleBatch1155
     /**
      * @notice                 opens a new sale of a single NFT. Supports {ERC721} and {ERC1155}. Compatible with {ERC721A}
      * @param _contractAddress the address of the NFT's contract
@@ -343,7 +319,7 @@ contract Marketplace is
 
     /**
      * @notice               modify the sale's price
-     * @param _marketOfferId id of the sale
+     * @param _marketOfferId index of the saleOrder
      * @param _newPrice      the new price of the sale
      */
     function modifySale(uint256 _marketOfferId, uint256 _newPrice) external {
@@ -354,7 +330,7 @@ contract Marketplace is
 
     /**
      * @notice               cancel a sale. Will refund last offer made
-     * @param _marketOfferId id of the sale
+     * @param _marketOfferId index of the saleOrder
      */
     function cancelSale(uint256 _marketOfferId) external nonReentrant {
         if (marketOffers[_marketOfferId].closed) revert offerClosed(); /// offer must still be ongoing to cancel
@@ -392,7 +368,7 @@ contract Marketplace is
     /**
      *@notice               allows anyone to buy instantly a NFT at asked price.
      *@dev                  fees SHOULD be automatically soustracted and made offer MUST be refunded if present
-     *@param _marketOfferId id of the sale
+     *@param _marketOfferId index of the saleOrder
      */
     function buySale(uint256 _marketOfferId) external payable nonReentrant {
         require(
@@ -453,11 +429,11 @@ contract Marketplace is
 
     /**
      * @notice make an offer. Offer is made and sent in WETH.
-     *
-     *  // ================================================================================================ //
-     *  //  WARNING: Once an offer is made it cannot be canceled for 48h.                                   //
-     *  //  only the direct sale of the NFT or an higher offer will cancel the offer and refund its bider.  //
-     *  // ================================================================================================ //
+     * @param _marketOfferId index of the saleOrder
+     * @param _amount price of the offer
+     * @param  _duration duration of the offer
+     * 
+     * emits a {} even
      */
     function makeOffer(uint256 _marketOfferId, uint _amount, uint _duration)
         external
@@ -494,8 +470,8 @@ contract Marketplace is
 
         if (marketOffers[_marketOfferId].seller != msg.sender) revert notOwner();             /// owner of the token - sale
         require(_index < marketOffers[_marketOfferId].offers.length, "index out of bound");
-        //TODO: require offerNotexpired 
-        //TODO: require balance of caller is enough
+        require(block.timestamp < offer.offerTime + offer.duration, "offer expired");
+        require(WETH.balanceOf(offer.sender) > offer.offerPrice, "WETH: not enough balance");
         require(
             WETH.allowance(offer.sender, address(this)) >=
                 marketOffers[_marketOfferId].offers[_index].offerPrice,
@@ -556,7 +532,7 @@ contract Marketplace is
      * @notice               cancel an offer made.
      * @param _marketOfferId id of the sale
      *
-     * Emits a {} event
+     * Emits a {offerCanceled} event
      */
     function cancelOffer(uint256 _marketOfferId, uint _index)
         external
@@ -579,6 +555,9 @@ contract Marketplace is
     ///         Security fallbacks
     /// ===============================
 
+    /**
+     * @notice allow a user to withdraw its balance if ETH was sent
+     */
         function withdrawEth() external{
             uint amount = balanceOfEth[msg.sender];
             delete balanceOfEth[msg.sender];
@@ -586,7 +565,9 @@ contract Marketplace is
             require(success);
         }
 
-        // TODO: allow contract to send back NFT. Only ERC721 allows unsafe transfers
+        /**
+        * @notice security function to allow marketplace to send NFT.
+        */
         function unlockNFT(address _contract, uint _tokenId, address _to ) external onlyOwner {
                 ERC721(_contract).safeTransferFrom(address(this), _to, _tokenId);
         }
@@ -608,11 +589,16 @@ contract Marketplace is
         return marketOffers[_marketOfferId];
     }
 
-
+    /**
+     * @notice get all fees in ETH collected
+     */
     function getEthFees() external view onlyOwner returns (uint) {
         return ethFees;
     }
 
+    /**
+     * @notice get all fees in WETH collected
+     */
     function getWEthFees() external view onlyOwner returns (uint) {
         return wethFees;
     }
