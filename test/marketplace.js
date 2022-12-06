@@ -2,7 +2,8 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const helpers = require("@nomicfoundation/hardhat-network-helpers");
 
-//TODO: tests for fees
+//TODO: tests for fees (ETH + WETH)
+//ALERT: reorganize, list and track test better
 
 describe("Marketplace", function () {
   before(async function () {
@@ -92,11 +93,12 @@ describe("Marketplace", function () {
         expect(saleOrder1.seller).to.equal("0x0000000000000000000000000000000000000000")
       })
 
-      // revert on direct NFT transfer (safeTransferFrom, transferFrom,batchTransfer, safeBatchTransfer)
+      // revert on direct NFT transfer from owner (with safeTransferFrom)
       it("2)  it should revert on direct transfer from owner", async () => {
         await expect( n721["safeTransferFrom(address,address,uint256)"](owner.address, marketplace.address, 1)).to.be.revertedWith('direct transfer not allowed')
       })
 
+        //revert on direct transfer from approved address (with safeTransferFrom)
       it("3)  it should revert on direct transfer from approved sender", async () => {
         await n721.approve(acc2.address, 2)
         await expect( n721.connect(acc2)["safeTransferFrom(address,address,uint256)"](owner.address, marketplace.address, 2)).to.be.revertedWith('direct transfer not allowed')
@@ -173,6 +175,8 @@ describe("Marketplace", function () {
         await expect(marketplace.createSale(n721.address, 3, ethers.utils.parseEther("1"))).to.emit(marketplace, 'SaleCreated').withArgs(4, owner.address, 3, n721.address, "ERC721", ethers.utils.parseEther("1"))
       })
 
+      console.log("blob")
+
       // createSale() revert when trying to sell a {ERC721} NFT not owned
       it("9)  it should revert with custom error 'notOwner' when an address creates a sale for a NFT (erc721) it doesn't own ", async () => {
         await n721.connect(acc1).mint(2)
@@ -209,8 +213,6 @@ describe("Marketplace", function () {
 
         expect(price1Tx.price).to.not.equal(price2Tx.price)
       })
-
-      //TODO: cancelSale revert on standard not recognized
 
 
       // cancelSale success with offer & event

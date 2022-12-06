@@ -9,6 +9,7 @@
 
 /// TODO: security
 /// TODO: gas opti
+/// ALERT: can make several sales on same NFT
 
 
 /// SPDX-License-Identifier: MIT
@@ -253,6 +254,8 @@ contract Marketplace is
         uint256 _tokenId,
         uint256 _price
     ) external {
+        (bool double) = isDouble(_contractAddress, _tokenId);
+        require(!double, "already a sale");
         if (
             ERC721(_contractAddress).supportsInterface(
                 type(IERC721).interfaceId
@@ -549,6 +552,12 @@ contract Marketplace is
         marketOffers[_marketOfferId].offers.pop();
         
         emit OfferCanceled(_marketOfferId, msg.sender, 0);
+    }
+
+    function isDouble(address _contractAddres, uint _tokenId) internal view returns (bool double){
+        for(uint i = 1; i <= marketOffersNonce; i++){
+            if(marketOffers[i].contractAddress == _contractAddres && marketOffers[i].tokenId == _tokenId) return double = true;
+        }
     }
 
     /// ===============================
