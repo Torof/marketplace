@@ -2,8 +2,9 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const helpers = require("@nomicfoundation/hardhat-network-helpers");
 
-//TODO: tests for fees (ETH + WETH)
-//ALERT: reorganize, list and track test better
+///TODO: tests for fees (ETH + WETH)
+///ALERT: reorganize, list and track test better
+///TODO: write test for multiple orders with ERC1155 same token id
 
 describe("Marketplace", function () {
   before(async function () {
@@ -240,6 +241,13 @@ describe("Marketplace", function () {
       // cancelSale() revert on not owner
       it("15) it should revert with 'not owner' if not the owner tries to cancel the sale", async () => {
         await expect(marketplace.connect(acc1).cancelSale(2)).to.be.revertedWithCustomError(marketplace, 'notOwner')
+      })
+
+      it("summary:", async () => {
+        console.log("bi")
+        console.log("bi")
+        console.log("bi")
+        console.log("bi")
       })
     })
 

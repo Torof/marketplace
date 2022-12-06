@@ -10,6 +10,7 @@
 /// TODO: security
 /// TODO: gas opti
 /// ALERT: can make several sales on same NFT
+/// ALERT: for testing price is set in ether not wei
 
 
 /// SPDX-License-Identifier: MIT
@@ -29,9 +30,6 @@ contract Marketplace is
     ERC1155Receiver,
     Ownable
 {
-    // bytes4 constant public                  ERC_721 = bytes4(keccak256("ERC721"));
-    // bytes4 constant public                  ERC_1155 = bytes4(keccak256("ERC721"));
-    // bytes4 constant public                  ERC_1155_BATCH = bytes4(keccak256("ERC721"));
     uint256 public                          marketOffersNonce = 1; /// sale id - all sales ongoing and closed
     uint256 private                         ethFees; /// All the fees gathered by the markeplace
     uint256 private                         wethFees;
@@ -46,8 +44,8 @@ contract Marketplace is
         address contractAddress; ///address of the NFT contract
         address seller; /// address that created the sale
         address buyer; /// address that bought the sale
-        string standard; /// standard of the collection - only ERC721 and ERC1155 accepted
-        bool closed; ///sale is on or finished
+        string  standard; /// standard of the collection - only ERC721 and ERC1155 accepted
+        bool    closed; ///sale is on or finished
         Offer[] offers; /// an array of all the offers
     }
 
@@ -63,6 +61,8 @@ contract Marketplace is
     error failedToSendEther();
 
     error notOwner();
+
+    error notEnoughBalance();
 
     error standardNotRecognized();
 
@@ -227,7 +227,7 @@ contract Marketplace is
     /**
      * @notice withdraw all gains made in WETH from the sales fees all at once.
      */
-    function withdrawFees() external payable onlyOwner {
+    function withdrawWETHFees() external payable onlyOwner {
         bool sent = ERC20(WETH).transferFrom(
             address(this),
             msg.sender,
@@ -254,13 +254,15 @@ contract Marketplace is
         uint256 _tokenId,
         uint256 _price
     ) external {
-        (bool double) = isDouble(_contractAddress, _tokenId);
-        require(!double, "already a sale");
+        
         if (
             ERC721(_contractAddress).supportsInterface(
                 type(IERC721).interfaceId
             )
         ) {
+            (bool double) = _isDouble(_contractAddress, _tokenId);
+            require(!double, "already a sale");
+
             (bool success1, bytes memory data) = _contractAddress.staticcall(
                 abi.encodeWithSignature("ownerOf(uint256)", _tokenId)
             );
@@ -295,6 +297,8 @@ contract Marketplace is
             ERC1155 collection = ERC1155(_contractAddress);
             if (collection.balanceOf(msg.sender, _tokenId) < 1)
                 revert notOwner();
+            (bool hasEnough) = _hasEnough(_contractAddress, _tokenId, msg.sender);
+            require(hasEnough, "not enough balance to issue new order");
 
             marketOffers[marketOffersNonce].contractAddress = _contractAddress; /// collection address
             marketOffers[marketOffersNonce].seller = msg.sender; /// seller address
@@ -554,9 +558,27 @@ contract Marketplace is
         emit OfferCanceled(_marketOfferId, msg.sender, 0);
     }
 
-    function isDouble(address _contractAddres, uint _tokenId) internal view returns (bool double){
+    /// ================================
+    ///    INTERNAL
+    /// ================================
+
+    function _isDouble(address _contractAddres, uint _tokenId) internal view returns (bool double){
+        
         for(uint i = 1; i <= marketOffersNonce; i++){
             if(marketOffers[i].contractAddress == _contractAddres && marketOffers[i].tokenId == _tokenId) return double = true;
+        }
+    }
+
+    ///ALERT: for now only order of one ERC1155 token by one can be issued, but is several will need to count amounts;
+    function _hasEnough(address _contractAddres, uint _tokenId, address _creator) internal view returns (bool enough){
+        // uint[] memory ex_Orders;
+        uint j;
+        for(uint i = 1; i <= marketOffersNonce; i++){
+            if(marketOffers[i].contractAddress == _contractAddres && marketOffers[i].tokenId == _tokenId && marketOffers[i].seller == msg.sender) {
+                // ex_Orders[j] = i;
+                j++;
+                }
+                ERC1155(_contractAddres).balanceOf(_creator, _tokenId) > j ? enough = true : enough = false;
         }
     }
 
