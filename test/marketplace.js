@@ -40,9 +40,26 @@ describe("Marketplace", function () {
     const n1155 = await N1155.deploy(initialMint);
     await n1155.deployed();
     global.n1155 = n1155;
+
+    let summary = async (num) => {
+      let orders = [];
+      let offers = [];
+      let offer = {};
+      for(i = 1; i <= num; i++){
+        let order = await marketplace.getSaleOrder(i)
+        orders.push(order)
+      }
+      console.log("number of offers: " + num)
+      console.log(orders)
+      for(i= 0; i < orders.length; i++){
+        if(orders[i].offers.length > 0) console.log(orders[i].offers)
+      }
+    }
+
+    global.summary = summary
   });
 
-  describe("¤¤NFT Marketplace¤¤", function () {
+  describe("¤¤NFT Marketplace¤¤",async function () {
 
     describe("_Testing NFT contracts_", async () => {
 
@@ -244,14 +261,14 @@ describe("Marketplace", function () {
       })
 
       it("summary:", async () => {
-        console.log("bi")
-        console.log("bi")
-        console.log("bi")
-        console.log("bi")
+        
+        let numOfOrders = await marketplace.marketOffersNonce() -1
+        
+        summary(numOfOrders)
       })
     })
 
-    describe("_Offers_ -Buy sale, make offer, cancel offer, accept offer", async () => {
+    await describe("_Offers_ -Buy sale, make offer, cancel offer, accept offer", async () => {
 
       // buySale() revert wrong amount
       it("1)  it should revert if not right amount of ether is supplied", async () => {
@@ -372,6 +389,12 @@ describe("Marketplace", function () {
 
         expect(saleOrder2.closed).to.equal(false)
         expect(saleOrder2.offers[0]).to.equal(undefined)
+      })
+
+      it("summary", async () =>  {
+        let numOfOrders = await marketplace.marketOffersNonce() -1
+        
+        summary(numOfOrders)
       })
     })
     describe("_Fees_", async ()=> {
