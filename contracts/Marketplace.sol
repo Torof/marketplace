@@ -475,7 +475,8 @@ contract Marketplace is
     {
         Offer memory offer = marketOffers[_marketOfferId].offers[_index];
 
-        if (marketOffers[_marketOfferId].seller != msg.sender) revert notOwner();             /// owner of the token - sale
+        if (marketOffers[_marketOfferId].seller != msg.sender) revert notOwner();
+        require(!marketOffers[_marketOfferId].closed, "saleis closed");           /// owner of the token - sale
         require(_index < marketOffers[_marketOfferId].offers.length, "index out of bound");
         require(block.timestamp < offer.offerTime + offer.duration, "offer expired");
         require(WETH.balanceOf(offer.sender) > offer.offerPrice, "WETH: not enough balance");

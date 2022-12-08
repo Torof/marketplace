@@ -348,12 +348,20 @@ describe("Marketplace", function () {
         await expect(marketplace.connect(acc2).acceptOffer(5,1)).to.be.revertedWithCustomError(marketplace, "notOwner")
       })
 
-      //TODO: acceptOffer() revert if offer expired
+      it("8) should revert acceptOffer() with 'offer expired'", async () => {
+        const snapshot = await helpers.takeSnapshot();
+
+        await helpers.time.increase(8000);
+        await expect(marketplace.acceptOffer(5,1)).to.be.revertedWith('offer expired')
+
+        await snapshot.restore();
+
+      })
 
       //TODO: acceptOffer() revert if sender not enough balance
 
       // acceptOffer() success
-      it("8)  it should accept offer send funds to seller and transfer NFT to new owner", async () => {
+      it("9)  it should accept offer send funds to seller and transfer NFT to new owner", async () => {
         await WETH.connect(acc2).approve(marketplace.address, 10000000000000)
 
         await expect(marketplace.acceptOffer(5,1)).to.changeTokenBalance(
@@ -366,14 +374,14 @@ describe("Marketplace", function () {
       })
 
       // makeOffer() revert on closed offer
-      it("9)  it should revert new offer if offer is closed", async () => {
+      it("10)  it should revert new offer if offer is closed", async () => {
         await WETH.mint(acc2.address, 100)
         await WETH.connect(acc2).approve(marketplace.address, 10)
         await expect(marketplace.connect(acc2).makeOffer(5, 1, 5 * 60 * 60)).to.be.revertedWithCustomError(marketplace, 'offerClosed')
       })
 
       // cancelOffer() succes
-      it("10)  it should cancel pending offer and offer array be empty", async () => {
+      it("11)  it should cancel pending offer and offer array be empty", async () => {
 
         await marketplace.connect(acc2).makeOffer(2,3, 5*60*60) ;
 
