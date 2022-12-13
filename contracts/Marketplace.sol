@@ -9,6 +9,7 @@
 
 /// TODO: security
 /// TODO: gas opti
+/// TODO: add IERC165 supportInterface
 /// ALERT: can make several sales on same NFT
 /// ALERT: for testing price is set in ether not wei
 
@@ -139,6 +140,13 @@ contract Marketplace is
 
     fallback() external {
         revert("not allowed");
+    }
+
+    function supportsInterface(bytes4 interfaceId) public pure override returns (bool) {
+        return
+            interfaceId == type(IERC721Receiver).interfaceId ||
+            interfaceId == type(IERC1155Receiver).interfaceId ||
+            interfaceId == type(IERC165).interfaceId;
     }
 
     /**
@@ -476,7 +484,7 @@ contract Marketplace is
         Offer memory offer = marketOffers[_marketOfferId].offers[_index];
 
         if (marketOffers[_marketOfferId].seller != msg.sender) revert notOwner();
-        require(!marketOffers[_marketOfferId].closed, "saleis closed");           /// owner of the token - sale
+        require(!marketOffers[_marketOfferId].closed, "sale is closed");           /// owner of the token - sale
         require(_index < marketOffers[_marketOfferId].offers.length, "index out of bound");
         require(block.timestamp < offer.offerTime + offer.duration, "offer expired");
         require(WETH.balanceOf(offer.sender) > offer.offerPrice, "WETH: not enough balance");
