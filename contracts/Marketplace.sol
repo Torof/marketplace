@@ -9,7 +9,7 @@
 
 /// TODO: security
 /// TODO: gas opti
-/// TODO: add IERC165 supportInterface
+
 /// ALERT: can make several sales on same NFT
 /// ALERT: for testing price is set in ether not wei
 
@@ -21,14 +21,14 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Marketplace is
     ReentrancyGuard,
     IERC721Receiver,
-    ERC1155Receiver,
+    IERC1155Receiver,
     Ownable
 {
     uint256 public                          marketOffersNonce = 1; /// sale id - all sales ongoing and closed
@@ -45,7 +45,7 @@ contract Marketplace is
         address contractAddress; ///address of the NFT contract
         address seller; /// address that created the sale
         address buyer; /// address that bought the sale
-        string  standard; /// standard of the collection - only ERC721 and ERC1155 accepted
+        bytes4  standard; /// standard of the collection - only ERC721 and ERC1155 accepted
         bool    closed; ///sale is on or finished
         Offer[] offers; /// an array of all the offers
     }
@@ -285,7 +285,7 @@ contract Marketplace is
             marketOffers[marketOffersNonce].seller = msg.sender; /// seller address
             marketOffers[marketOffersNonce].price = _price; ///sale price
             marketOffers[marketOffersNonce].tokenId = _tokenId;
-            marketOffers[marketOffersNonce].standard = "ERC721"; ///NFT's standard
+            marketOffers[marketOffersNonce].standard = type(IERC721).interfaceId; ///NFT's standard
 
             collection.safeTransferFrom(msg.sender, address(this), _tokenId); ///Transfer NFT to marketplace contract for custody
             emit SaleCreated(
@@ -293,7 +293,7 @@ contract Marketplace is
                 msg.sender, ///seller address
                 _tokenId,
                 _contractAddress,
-                marketOffers[marketOffersNonce].standard,
+                "ERC721",
                 _price
             );
             marketOffersNonce++;
@@ -312,7 +312,7 @@ contract Marketplace is
             marketOffers[marketOffersNonce].seller = msg.sender; /// seller address
             marketOffers[marketOffersNonce].price = _price; /// sale price
             marketOffers[marketOffersNonce].tokenId = _tokenId; /// id of the token (cannot be fungible in this case)
-            marketOffers[marketOffersNonce].standard = "ERC1155"; /// NFT's standard
+            marketOffers[marketOffersNonce].standard = type(IERC1155).interfaceId; /// NFT's standard
             collection.safeTransferFrom(
                 msg.sender,
                 address(this),
@@ -325,7 +325,7 @@ contract Marketplace is
                 msg.sender,
                 _tokenId,
                 _contractAddress,
-                marketOffers[marketOffersNonce].standard,
+                "ERC1155",
                 _price
             );
             marketOffersNonce++;
@@ -573,7 +573,7 @@ contract Marketplace is
 
     function _isDouble(address _contractAddres, uint _tokenId) internal view returns (bool double){
         
-        for(uint i = 1; i <= marketOffersNonce; i++){
+        for(uint i = 1; i <= marketOffersNonce; ++i){
             if(marketOffers[i].contractAddress == _contractAddres && marketOffers[i].tokenId == _tokenId) return double = true;
         }
     }
@@ -582,7 +582,7 @@ contract Marketplace is
     function _hasEnough(address _contractAddres, uint _tokenId, address _creator) internal view returns (bool enough){
         // uint[] memory ex_Orders;
         uint j;
-        for(uint i = 1; i <= marketOffersNonce; i++){
+        for(uint i = 1; i <= marketOffersNonce; ++i){
             if(marketOffers[i].contractAddress == _contractAddres && marketOffers[i].tokenId == _tokenId && marketOffers[i].seller == msg.sender) {
                 // ex_Orders[j] = i;
                 j++;
