@@ -1060,6 +1060,91 @@
         }
       }
     },
+    "node_modules/@openzeppelin/contracts/interfaces/IERC1155Receiver.sol": {
+      "lastModificationDate": 1661957542602,
+      "contentHash": "a80dbc3947556c57c569cd81aa255f10",
+      "sourceName": "node_modules/@openzeppelin/contracts/interfaces/IERC1155Receiver.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol",
+        "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol"
+      ],
+      "versionRequirement": "^0.8.0",
+      "artifacts": {
+        "IERC1155Receiver": {
+          "0.8.10+commit.fc410830.Linux.gcc": "IERC1155Receiver.sol/IERC1155Receiver.json"
+        }
+      }
+    },
+    "node_modules/@openzeppelin/contracts/interfaces/IERC721Receiver.sol": {
+      "lastModificationDate": 1661957542618,
+      "contentHash": "04c99e0f7cc521daff42ecd8e8f14877",
+      "sourceName": "node_modules/@openzeppelin/contracts/interfaces/IERC721Receiver.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "node_modules/@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol"
+      ],
+      "versionRequirement": "^0.8.0",
+      "artifacts": {
+        "IERC721Receiver": {
+          "0.8.10+commit.fc410830.Linux.gcc": "IERC721Receiver.sol/IERC721Receiver.json"
+        }
+      }
+    },
     "node_modules/@openzeppelin/contracts/security/ReentrancyGuard.sol": {
       "lastModificationDate": 1661957542658,
       "contentHash": "92f9448b23a90ea3bb932ee55cc3ccce",
@@ -2005,10 +2090,10 @@
         }
       }
     },
-    "test/foundry/MarketplaceTest.sol": {
-      "lastModificationDate": 1671568368955,
-      "contentHash": "ad7a79508d97f5305a683cf155f0702f",
-      "sourceName": "test/foundry/MarketplaceTest.sol",
+    "test/foundry/MarketplaceTest.t.sol": {
+      "lastModificationDate": 1671657337332,
+      "contentHash": "48f69dcd328e3c4e3cbcca334b5b496c",
+      "sourceName": "test/foundry/MarketplaceTest.t.sol",
       "solcConfig": {
         "settings": {
           "optimizer": {
@@ -2038,6 +2123,10 @@
         }
       },
       "imports": [
+        "contracts/Marketplace.sol",
+        "contracts/NFT1155.sol",
+        "contracts/NFT721.sol",
+        "contracts/WETH.sol",
         "lib/forge-std/lib/ds-test/src/test.sol",
         "lib/forge-std/src/Common.sol",
         "lib/forge-std/src/Components.sol",
@@ -2052,12 +2141,35 @@
         "lib/forge-std/src/Test.sol",
         "lib/forge-std/src/Vm.sol",
         "lib/forge-std/src/console.sol",
-        "lib/forge-std/src/console2.sol"
+        "lib/forge-std/src/console2.sol",
+        "node_modules/@openzeppelin/contracts/access/Ownable.sol",
+        "node_modules/@openzeppelin/contracts/interfaces/IERC1155Receiver.sol",
+        "node_modules/@openzeppelin/contracts/interfaces/IERC721Receiver.sol",
+        "node_modules/@openzeppelin/contracts/security/ReentrancyGuard.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/ERC1155.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC721/IERC721.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC721/extensions/IERC721Enumerable.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol",
+        "node_modules/@openzeppelin/contracts/utils/Address.sol",
+        "node_modules/@openzeppelin/contracts/utils/Context.sol",
+        "node_modules/@openzeppelin/contracts/utils/Strings.sol",
+        "node_modules/@openzeppelin/contracts/utils/introspection/ERC165.sol",
+        "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol"
       ],
       "versionRequirement": "=0.8.10",
       "artifacts": {
         "MarketplaceTest": {
-          "0.8.10+commit.fc410830.Linux.gcc": "MarketplaceTest.sol/MarketplaceTest.json"
+          "0.8.10+commit.fc410830.Linux.gcc": "MarketplaceTest.t.sol/MarketplaceTest.json"
         }
       }
     }
