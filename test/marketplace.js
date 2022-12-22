@@ -148,7 +148,7 @@ describe("Marketplace", function () {
 
         expect(saleOrder1.tokenId).to.equal(1)
 
-        expect(saleOrder1.standard).to.equal("ERC721")
+        expect(saleOrder1.standard).to.equal('0x80ac58cd')
       })
 
       // createSale() revert on not approved for {ERC721}
@@ -178,7 +178,7 @@ describe("Marketplace", function () {
 
         expect(saleOrder2.tokenId).to.equal(1)
 
-        expect(saleOrder2.standard).to.equal("ERC1155")
+        expect(saleOrder2.standard).to.equal('0xd9b67a26')
       })
 
 

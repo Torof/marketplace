@@ -67,6 +67,8 @@ contract Marketplace is
 
     error standardNotRecognized();
 
+    event testEvent(address msgsender,address txorigin, address contractA);
+
     /**
      *@notice Emitted when a NFT is received
      */
