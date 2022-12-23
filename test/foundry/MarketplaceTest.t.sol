@@ -70,10 +70,25 @@ contract MarketplaceTest is Test {
         nft721.safeTransferFrom(bob, address(marketplace), 2);
     }
 
-    function testCreateOrder() public {
+    function testRevertCreateOrderWithoutMarketplaceApproval() public {
+        vm.expectRevert(bytes("ERC721: caller is not token owner nor approved"));
+        marketplace.createSale(address(nft721), 1, 1);
+        // assertEq(marketplace.getSaleOrder(1).contractAddress, address(nft721));
+    }
+
+    function testCreateOrder1() public {
         nft721.setApprovalForAll(address(marketplace), true);
         marketplace.createSale(address(nft721), 1, 1);
         assertEq(marketplace.getSaleOrder(1).contractAddress, address(nft721));
+        assertEq(marketplace.getSaleOrder(1).seller, bob);
+    }
+
+    function testModifySale() public {
+        nft721.setApprovalForAll(address(marketplace), true);
+        marketplace.createSale(address(nft721), 1, 1);
+        assertEq(marketplace.getSaleOrder(1).price, 1);
+        marketplace.modifySale(1, 2);
+        assertEq(marketplace.getSaleOrder(1).price, 2);
     }
 
     function onERC721Received(
@@ -93,8 +108,6 @@ contract MarketplaceTest is Test {
         uint256 value,
         bytes calldata data
     ) external returns (bytes4) {
-        if (msg.sender != address(this) && tx.origin == operator)
-            revert("direct transfer not allowed"); //disallow direct transfers
         emit NFTReceived(operator, from, id, value, "ERC1155", data);
         return IERC1155Receiver.onERC1155Received.selector;
     }

@@ -164,6 +164,7 @@ contract Marketplace is
         uint256 tokenId,
         bytes calldata data
     ) external override returns (bytes4) {
+        emit testEvent(msg.sender,tx.origin, address(this));
         if (msg.sender != address(this) && tx.origin == operator)
             revert("direct transfer not allowed"); //disallow direct transfers with safeTransferFrom()
         emit NFTReceived(operator, from, tokenId, 1, "ERC721", data);
@@ -342,7 +343,7 @@ contract Marketplace is
     function modifySale(uint256 _marketOfferId, uint256 _newPrice) external {
         if (msg.sender != marketOffers[_marketOfferId].seller)
             revert notOwner();
-        marketOffers[_marketOfferId].price = _newPrice * 1 ether;
+        marketOffers[_marketOfferId].price = _newPrice;
     }
 
     /**

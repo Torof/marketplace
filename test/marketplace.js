@@ -130,7 +130,7 @@ describe("Marketplace", function () {
       })
 
       // createSale() success and parameters verifications for {ERC721}
-      it("5)  it should create a sale and saleOrder1 have seller, contract address, price , tokenId, standard be ERC721 and closed be false - ERC721 - ", async () => {
+      it("5)  it should create a sale and saleOrder1 have a seller, a contract address, a price , a tokenId, standard be ERC721 and closed be false - ERC721 - ", async () => {
         expect(await n721.ownerOf(1)).to.equal(owner.address)
 
         await n721.setApprovalForAll(marketplace.address, true)
