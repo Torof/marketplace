@@ -387,6 +387,7 @@ contract Marketplace is
      *@notice               allows anyone to buy instantly a NFT at asked price.
      *@dev                  fees SHOULD be automatically soustracted and made offer MUST be refunded if present
      *@param _marketOfferId index of the saleOrder
+     * emits a {SaleSuccesful} event
      */
     function buySale(uint256 _marketOfferId) external payable nonReentrant {
         require(
@@ -451,7 +452,7 @@ contract Marketplace is
      * @param _amount price of the offer
      * @param  _duration duration of the offer
      * 
-     * emits a {} even
+     * emits a {OfferSubmitted} event
      */
     function makeOffer(uint256 _marketOfferId, uint _amount, uint _duration)
         external
@@ -478,9 +479,9 @@ contract Marketplace is
      * @dev                  fees SHOULD be automatically soustracted
      * @param _marketOfferId id of the sale
      *
-     * Emits a {} event if follows IERC721 or {} event if it follows IERC1155
+     * Emits a {SaleSuccesful} event
      */
-    function acceptOffer(uint256 _marketOfferId, uint _index)
+    function acceptOffer(uint256 _marketOfferId, uint _index)       //ALERT: order price and bought at price are different
         external
         nonReentrant
     {
@@ -497,11 +498,13 @@ contract Marketplace is
             "not enough allowance"
         );
 
-        marketOffers[_marketOfferId].buyer = offer.sender;                                    /// update buyer
-        marketOffers[_marketOfferId].price = offer.offerPrice;                                    /// update sell price
-        marketOffers[_marketOfferId].closed = true;                                           /// offer is now over
-
         SaleOrder memory marketOrder = marketOffers[_marketOfferId];
+
+        marketOrder.buyer = offer.sender;                                        /// update buyer
+        marketOrder.price = offer.offerPrice;                                    /// update sell price
+        marketOrder.closed = true;                                               /// offer is now over
+
+        
 
         if (
             ERC721(marketOrder.contractAddress).supportsInterface(
@@ -545,6 +548,8 @@ contract Marketplace is
             (offer.offerPrice * marketPlaceFee) / 100
         );
         if (!sent2) revert failedToSendEther();
+
+        emit SaleSuccessful(_marketOfferId, marketOrder.seller, marketOrder.buyer, offer.offerPrice);
     }
 
     /**
@@ -555,7 +560,6 @@ contract Marketplace is
      */
     function cancelOffer(uint256 _marketOfferId, uint _index)
         external
-        nonReentrant
     {
         require(
             msg.sender == marketOffers[_marketOfferId].offers[_index].sender,
@@ -577,7 +581,7 @@ contract Marketplace is
     function _isDouble(address _contractAddres, uint _tokenId) internal view returns (bool double){
         
         for(uint i = 1; i <= marketOffersNonce; ++i){
-            if(marketOffers[i].contractAddress == _contractAddres && marketOffers[i].tokenId == _tokenId) return double = true;
+            if(marketOffers[i].contractAddress == _contractAddres && marketOffers[i].tokenId == _tokenId) double = true;
         }
     }
 
