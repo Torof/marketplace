@@ -265,6 +265,8 @@ contract Marketplace is
         uint256 _tokenId,
         uint256 _price
     ) external {
+
+        SaleOrder storage order = marketOffers[marketOffersNonce];
         
         if (
             ERC721(_contractAddress).supportsInterface(
@@ -284,11 +286,11 @@ contract Marketplace is
 
             ERC721 collection = ERC721(_contractAddress); ///collection address
 
-            marketOffers[marketOffersNonce].contractAddress = _contractAddress; /// collection address
-            marketOffers[marketOffersNonce].seller = msg.sender; /// seller address
-            marketOffers[marketOffersNonce].price = _price; ///sale price
-            marketOffers[marketOffersNonce].tokenId = _tokenId;
-            marketOffers[marketOffersNonce].standard = type(IERC721).interfaceId; ///NFT's standard
+            order.contractAddress = _contractAddress; /// collection address
+            order.seller = msg.sender; /// seller address
+            order.price = _price; ///sale price
+            order.tokenId = _tokenId;
+            order.standard = type(IERC721).interfaceId; ///NFT's standard
 
             collection.safeTransferFrom(msg.sender, address(this), _tokenId); ///Transfer NFT to marketplace contract for custody
             emit SaleCreated(
@@ -311,11 +313,11 @@ contract Marketplace is
             (bool hasEnough) = _hasEnough(_contractAddress, _tokenId, msg.sender);
             require(hasEnough, "not enough balance to issue new order");
 
-            marketOffers[marketOffersNonce].contractAddress = _contractAddress; /// collection address
-            marketOffers[marketOffersNonce].seller = msg.sender; /// seller address
-            marketOffers[marketOffersNonce].price = _price; /// sale price
-            marketOffers[marketOffersNonce].tokenId = _tokenId; /// id of the token (cannot be fungible in this case)
-            marketOffers[marketOffersNonce].standard = type(IERC1155).interfaceId; /// NFT's standard
+            order.contractAddress = _contractAddress; /// collection address
+            order.seller = msg.sender; /// seller address
+            order.price = _price; /// sale price
+            order.tokenId = _tokenId; /// id of the token (cannot be fungible in this case)
+            order.standard = type(IERC1155).interfaceId; /// NFT's standard
             collection.safeTransferFrom(
                 msg.sender,
                 address(this),
@@ -485,46 +487,45 @@ contract Marketplace is
         external
         nonReentrant
     {
-        Offer memory offer = marketOffers[_marketOfferId].offers[_index];
+        SaleOrder storage order = marketOffers[_marketOfferId];
+        Offer memory offer = order.offers[_index];
 
-        if (marketOffers[_marketOfferId].seller != msg.sender) revert notOwner();
-        require(!marketOffers[_marketOfferId].closed, "sale is closed");           /// owner of the token - sale
-        require(_index < marketOffers[_marketOfferId].offers.length, "index out of bound");
+        if (order.seller != msg.sender) revert notOwner();
+        require(!order.closed, "sale is closed");           /// owner of the token - sale
+        require(_index < order.offers.length, "index out of bound");
         require(block.timestamp < offer.offerTime + offer.duration, "offer expired");
         require(WETH.balanceOf(offer.sender) > offer.offerPrice, "WETH: not enough balance");
         require(
             WETH.allowance(offer.sender, address(this)) >=
-                marketOffers[_marketOfferId].offers[_index].offerPrice,
+                order.offers[_index].offerPrice,
             "not enough allowance"
         );
 
-        SaleOrder memory marketOrder = marketOffers[_marketOfferId];
-
-        marketOrder.buyer = offer.sender;                                        /// update buyer
-        marketOrder.price = offer.offerPrice;                                    /// update sell price
-        marketOrder.closed = true;                                               /// offer is now over
+        order.buyer = offer.sender;                                        /// update buyer
+        order.price = offer.offerPrice;                                    /// update sell price
+        order.closed = true;                                               /// offer is now over
 
         
 
         if (
-            ERC721(marketOrder.contractAddress).supportsInterface(
+            ERC721(order.contractAddress).supportsInterface(
                 type(IERC721).interfaceId
             )
         )
-            ERC721(marketOrder.contractAddress).safeTransferFrom(
+            ERC721(order.contractAddress).safeTransferFrom(
                 address(this),
-                marketOrder.buyer,
-                marketOrder.tokenId
+                order.buyer,
+                order.tokenId
             ); /// transfer NFT to new owner
         else if (
-            ERC1155(marketOrder.contractAddress).supportsInterface(
+            ERC1155(order.contractAddress).supportsInterface(
                 type(IERC1155).interfaceId
             )
         )
-            ERC1155(marketOrder.contractAddress).safeTransferFrom(
+            ERC1155(order.contractAddress).safeTransferFrom(
                 address(this),
                 msg.sender,
-                marketOrder.tokenId,
+                order.tokenId,
                 1,
                 ""
             ); /// transfer NFT ERC1155 to new owner
@@ -536,20 +537,20 @@ contract Marketplace is
         wethFees += (offer.offerPrice * marketPlaceFee) / 100;
 
         bool sent1 = ERC20(WETH).transferFrom(
-            marketOffers[_marketOfferId].offers[_index].sender,
+            order.offers[_index].sender,
             msg.sender,
             afterFees
         );
         if (!sent1) revert failedToSendEther();
 
         bool sent2 = ERC20(WETH).transferFrom(
-            marketOffers[_marketOfferId].offers[_index].sender,
+            order.offers[_index].sender,
             address(this),
             (offer.offerPrice * marketPlaceFee) / 100
         );
         if (!sent2) revert failedToSendEther();
 
-        emit SaleSuccessful(_marketOfferId, marketOrder.seller, marketOrder.buyer, offer.offerPrice);
+        emit SaleSuccessful(_marketOfferId, order.seller, order.buyer, offer.offerPrice);
     }
 
     /**
