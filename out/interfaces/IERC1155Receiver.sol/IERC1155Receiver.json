@@ -1,0 +1,54 @@
+{
+  "abi": [],
+  "bytecode": {
+    "object": "0x",
+    "linkReferences": {}
+  },
+  "deployedBytecode": {
+    "object": "0x",
+    "linkReferences": {}
+  },
+  "ast": {
+    "absolutePath": "node_modules/@openzeppelin/contracts/interfaces/IERC1155Receiver.sol",
+    "id": 28215,
+    "exportedSymbols": {
+      "IERC1155Receiver": [
+        29643
+      ],
+      "IERC165": [
+        32480
+      ]
+    },
+    "nodeType": "SourceUnit",
+    "src": "100:73:23",
+    "nodes": [
+      {
+        "id": 28213,
+        "nodeType": "PragmaDirective",
+        "src": "100:23:23",
+        "nodes": [],
+        "literals": [
+          "solidity",
+          "^",
+          "0.8",
+          ".0"
+        ]
+      },
+      {
+        "id": 28214,
+        "nodeType": "ImportDirective",
+        "src": "125:47:23",
+        "nodes": [],
+        "absolutePath": "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol",
+        "file": "../token/ERC1155/IERC1155Receiver.sol",
+        "nameLocation": "-1:-1:-1",
+        "scope": 28215,
+        "sourceUnit": 29644,
+        "symbolAliases": [],
+        "unitAlias": ""
+      }
+    ],
+    "license": "MIT"
+  },
+  "id": 23
+}

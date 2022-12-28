@@ -3,8 +3,6 @@ const { ethers } = require("hardhat");
 const helpers = require("@nomicfoundation/hardhat-network-helpers");
 
 ///TODO: tests for fees (ETH + WETH)
-///ALERT: reorganize, list and track test better
-///TODO: write test for multiple orders with ERC1155 same token id
 
 describe("Marketplace", function () {
   before(async function () {
@@ -260,12 +258,12 @@ describe("Marketplace", function () {
         await expect(marketplace.connect(acc1).cancelSale(2)).to.be.revertedWithCustomError(marketplace, 'notOwner')
       })
 
-      it("summary:", async () => {
+      // it("summary:", async () => {
         
-        let numOfOrders = await marketplace.marketOffersNonce() -1
+      //   let numOfOrders = await marketplace.marketOffersNonce() -1
         
-        summary(numOfOrders)
-      })
+      //   summary(numOfOrders)
+      // })
     })
 
     await describe("_Offers_ -Buy sale, make offer, cancel offer, accept offer", async () => {
@@ -399,11 +397,11 @@ describe("Marketplace", function () {
         expect(saleOrder2.offers[0]).to.equal(undefined)
       })
 
-      it("summary", async () =>  {
-        let numOfOrders = await marketplace.marketOffersNonce() -1
+      // it("summary", async () =>  {
+      //   let numOfOrders = await marketplace.marketOffersNonce() -1
         
-        summary(numOfOrders)
-      })
+      //   summary(numOfOrders)
+      // })
     })
     describe("_Fees_", async ()=> {
       it("1) fees are at 0", async () => {

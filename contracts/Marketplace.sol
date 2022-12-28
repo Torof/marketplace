@@ -9,6 +9,7 @@
 
 /// TODO: security
 /// TODO: gas opti
+/// TODO: limit to {n} offers.
 
 /// ALERT: can make several sales on same NFT
 /// ALERT: for testing price is set in ether not wei
@@ -45,7 +46,7 @@ contract Marketplace is
         address contractAddress; ///address of the NFT contract
         address seller; /// address that created the sale
         address buyer; /// address that bought the sale
-        bytes4  standard; /// standard of the collection - only ERC721 and ERC1155 accepted
+        bytes4  standard; /// standard of the collection - bytes4 of {IERC721} interface OR {IERC1155} interface - only ERC721 and ERC1155 accepted
         bool    closed; ///sale is on or finished
         Offer[] offers; /// an array of all the offers
     }
@@ -67,6 +68,9 @@ contract Marketplace is
 
     error standardNotRecognized();
 
+
+    
+
     event testEvent(address msgsender,address txorigin, address contractA);
 
     /**
@@ -77,7 +81,7 @@ contract Marketplace is
         address from,
         uint256 tokenId,
         uint256 amount,
-        string standard,
+        bytes4 standard,
         bytes data
     );
 
@@ -167,7 +171,7 @@ contract Marketplace is
         emit testEvent(msg.sender,tx.origin, address(this));
         if (msg.sender != address(this) && tx.origin == operator)
             revert("direct transfer not allowed"); //disallow direct transfers with safeTransferFrom()
-        emit NFTReceived(operator, from, tokenId, 1, "ERC721", data);
+        emit NFTReceived(operator, from, tokenId, 1, type(IERC721).interfaceId, data);
         return IERC721Receiver.onERC721Received.selector;
     }
 
@@ -188,7 +192,7 @@ contract Marketplace is
     ) external override returns (bytes4) {
         if (msg.sender != address(this) && tx.origin == operator)
             revert("direct transfer not allowed"); //disallow direct transfers
-        emit NFTReceived(operator, from, id, value, "ERC1155", data);
+        emit NFTReceived(operator, from, id, value, type(IERC1155).interfaceId, data);
         return IERC1155Receiver.onERC1155Received.selector;
     }
 
