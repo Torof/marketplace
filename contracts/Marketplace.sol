@@ -2,21 +2,16 @@
  *@author Torof
  *@title A custodial NFT MarketPlace
  *@notice This marketplace allows the listing and selling of {ERC721} and {ERC1155} Non Fungible & Semi Fungible Tokens.
- *@dev The marketplace MUST hold the NFT in custody. Offers follow a non custodial model using Wrapped Ethereum. 
-*      Sender needs to have sufficiant WETH funds to submit offer. 
-*      Showing the onGoing offers and not the expired offers must happen on the front-end.
+ *@dev The marketplace MUST hold the NFT in custody. Offers follow a non custodial model using Wrapped Ethereum.
+ *      Sender needs to have sufficiant WETH funds to submit offer.
+ *      Showing the onGoing offers and not the expired offers must happen on the front-end.
  */
 
-/// TODO: security
+/// TODO: add security extension contract (NFT unlock, withdraw ETH ...)
 /// TODO: gas opti
-/// TODO: limit to {n} offers.
-
-/// ALERT: can make several sales on same NFT
-/// ALERT: for testing price is set in ether not wei
-
 
 /// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.6;
+pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
@@ -26,19 +21,19 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Marketplace is
+contract MarketplaceCustodial is
     ReentrancyGuard,
     IERC721Receiver,
     IERC1155Receiver,
     Ownable
 {
-    uint256 public                          marketOffersNonce = 1; /// sale id - all sales ongoing and closed
-    uint256 private                         ethFees; /// All the fees gathered by the markeplace
-    uint256 private                         wethFees;
-    uint256 public                          marketPlaceFee; /// percentage of the fee. starts at 0, cannot be more than 10
-    ERC20 public immutable                  WETH;
-    mapping(uint256 => SaleOrder) private   marketOffers;
-    mapping(address => uint256 ) public     balanceOfEth;
+    uint256 public marketOffersNonce = 1; /// sale id - all sales ongoing and closed
+    uint256 private ethFees; /// All the fees gathered by the markeplace
+    uint256 private wethFees;
+    uint256 public marketPlaceFee; /// percentage of the fee. starts at 0, cannot be more than 10
+    ERC20 public immutable WETH;
+    mapping(uint256 => SaleOrder) public marketOffers;
+    mapping(address => uint256) public balanceOfEth;
 
     struct SaleOrder {
         uint256 price; /// price of the sale
@@ -46,8 +41,8 @@ contract Marketplace is
         address contractAddress; ///address of the NFT contract
         address seller; /// address that created the sale
         address buyer; /// address that bought the sale
-        bytes4  standard; /// standard of the collection - bytes4 of {IERC721} interface OR {IERC1155} interface - only ERC721 and ERC1155 accepted
-        bool    closed; ///sale is on or finished
+        bytes4 standard; /// standard of the collection - bytes4 of {IERC721} interface OR {IERC1155} interface - only ERC721 and ERC1155 accepted
+        bool closed; ///sale is on or finished
         Offer[] offers; /// an array of all the offers
     }
 
@@ -68,10 +63,7 @@ contract Marketplace is
 
     error standardNotRecognized();
 
-
-    
-
-    event testEvent(address msgsender,address txorigin, address contractA);
+    event testEvent(address msgsender, address txorigin, address contractA);
 
     /**
      *@notice Emitted when a NFT is received
@@ -85,7 +77,14 @@ contract Marketplace is
         bytes data
     );
 
-    event BatchNFTReceived(address _operator, address _from, uint[] ids,uint[] values,string standard,bytes data);
+    event BatchNFTReceived(
+        address _operator,
+        address _from,
+        uint[] ids,
+        uint[] values,
+        string standard,
+        bytes data
+    );
     /**
      *@notice Emitted when a new market saleis created
      */
@@ -94,7 +93,7 @@ contract Marketplace is
         address from,
         uint256 tokenId,
         address contractAddress,
-        string standard,
+        bytes4 standard,
         uint256 price
     );
 
@@ -131,7 +130,6 @@ contract Marketplace is
         uint canceledOffer
     );
 
-
     constructor(address _WETH) {
         WETH = ERC20(_WETH);
     }
@@ -140,7 +138,9 @@ contract Marketplace is
     ///    Receive & support interfaces
     /// ==========================================
 
-    receive() payable external {
+    receive() external payable {
+        ///TODO: verify sender is not contract, if not revert
+        ///CHECK: change to WETH ?
         balanceOfEth[msg.sender] = msg.value;
     }
 
@@ -148,7 +148,9 @@ contract Marketplace is
         revert("not allowed");
     }
 
-    function supportsInterface(bytes4 interfaceId) public pure override returns (bool) {
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public pure override returns (bool) {
         return
             interfaceId == type(IERC721Receiver).interfaceId ||
             interfaceId == type(IERC1155Receiver).interfaceId ||
@@ -168,10 +170,16 @@ contract Marketplace is
         uint256 tokenId,
         bytes calldata data
     ) external override returns (bytes4) {
-        emit testEvent(msg.sender,tx.origin, address(this));
         if (msg.sender != address(this) && tx.origin == operator)
             revert("direct transfer not allowed"); //disallow direct transfers with safeTransferFrom()
-        emit NFTReceived(operator, from, tokenId, 1, type(IERC721).interfaceId, data);
+        emit NFTReceived(
+            operator,
+            from,
+            tokenId,
+            1,
+            type(IERC721).interfaceId,
+            data
+        );
         return IERC721Receiver.onERC721Received.selector;
     }
 
@@ -192,7 +200,14 @@ contract Marketplace is
     ) external override returns (bytes4) {
         if (msg.sender != address(this) && tx.origin == operator)
             revert("direct transfer not allowed"); //disallow direct transfers
-        emit NFTReceived(operator, from, id, value, type(IERC1155).interfaceId, data);
+        emit NFTReceived(
+            operator,
+            from,
+            id,
+            value,
+            type(IERC1155).interfaceId,
+            data
+        );
         return IERC1155Receiver.onERC1155Received.selector;
     }
 
@@ -211,7 +226,7 @@ contract Marketplace is
         uint256[] calldata values,
         bytes calldata data
     ) external override returns (bytes4) {
-        if (tx.origin != address(this) && tx.origin == operator)
+        if (msg.sender != address(this) && tx.origin == operator)
             revert("direct transfer not allowed"); //disallow direct transfers
         emit BatchNFTReceived(operator, from, ids, values, "ERC1155", data);
         return IERC1155Receiver.onERC1155BatchReceived.selector;
@@ -257,6 +272,7 @@ contract Marketplace is
     /// ==========================================
 
     ///CHECK: one function createSale or several ? => createSaleERC721, createSaleERC1155, createSaleBatch1155
+    ///TODO: create internal function for create sale, 2 functions for ERC721 and ERC1155 createsale and one function regrouping the 2.
     /**
      * @notice                 opens a new sale of a single NFT. Supports {ERC721} and {ERC1155}. Compatible with {ERC721A}
      * @param _contractAddress the address of the NFT's contract
@@ -269,24 +285,23 @@ contract Marketplace is
         uint256 _tokenId,
         uint256 _price
     ) external {
-
         SaleOrder storage order = marketOffers[marketOffersNonce];
-        
+
         if (
             ERC721(_contractAddress).supportsInterface(
                 type(IERC721).interfaceId
             )
         ) {
-            (bool double) = _isDouble(_contractAddress, _tokenId);
+            bool double = _isDouble(_contractAddress, _tokenId);
             require(!double, "already a sale");
 
             (bool success1, bytes memory data) = _contractAddress.staticcall(
                 abi.encodeWithSignature("ownerOf(uint256)", _tokenId)
             );
             if (!success1) revert("non view detected");
-            address owner = abi.decode(data, (address));
+            address owner_ = abi.decode(data, (address));
 
-            if (owner != msg.sender) revert notOwner(); ///creator must own NFT
+            if (owner_ != msg.sender) revert notOwner(); ///creator must own NFT
 
             ERC721 collection = ERC721(_contractAddress); ///collection address
 
@@ -296,13 +311,13 @@ contract Marketplace is
             order.tokenId = _tokenId;
             order.standard = type(IERC721).interfaceId; ///NFT's standard
 
-            collection.safeTransferFrom(msg.sender, address(this), _tokenId); ///Transfer NFT to marketplace contract for custody
+            collection.safeTransferFrom(msg.sender, address(this), _tokenId, ""); ///Transfer NFT to marketplace contract for custody
             emit SaleCreated(
                 marketOffersNonce, ///id of the new offer
                 msg.sender, ///seller address
                 _tokenId,
                 _contractAddress,
-                "ERC721",
+                type(IERC721).interfaceId,
                 _price
             );
             marketOffersNonce++;
@@ -314,14 +329,15 @@ contract Marketplace is
             ERC1155 collection = ERC1155(_contractAddress);
             if (collection.balanceOf(msg.sender, _tokenId) < 1)
                 revert notOwner();
-            (bool hasEnough) = _hasEnough(_contractAddress, _tokenId, msg.sender);
-            require(hasEnough, "not enough balance to issue new order");
+            bool hasEnough = _hasBalance(_contractAddress, _tokenId, msg.sender);
+            require(hasEnough, "not enough balance for new order");
 
             order.contractAddress = _contractAddress; /// collection address
             order.seller = msg.sender; /// seller address
             order.price = _price; /// sale price
             order.tokenId = _tokenId; /// id of the token (cannot be fungible in this case)
             order.standard = type(IERC1155).interfaceId; /// NFT's standard
+
             collection.safeTransferFrom(
                 msg.sender,
                 address(this),
@@ -334,11 +350,37 @@ contract Marketplace is
                 msg.sender,
                 _tokenId,
                 _contractAddress,
-                "ERC1155",
+                type(IERC1155).interfaceId,
                 _price
             );
             marketOffersNonce++;
         } else revert standardNotRecognized();
+    }
+
+    function _createSale(
+        address _contractAddress,
+        uint256 _tokenId,
+        uint256 _price,
+        bytes4 _standard) internal {
+
+            SaleOrder storage order = marketOffers[marketOffersNonce];
+
+            order.contractAddress = _contractAddress; /// collection address
+            order.seller = msg.sender; /// seller address
+            order.price = _price; ///sale price
+            order.tokenId = _tokenId;
+            order.standard = _standard; ///NFT's standard
+
+            
+            emit SaleCreated(
+                marketOffersNonce, ///id of the new offer
+                msg.sender, ///seller address
+                _tokenId,
+                _contractAddress,
+                _standard,
+                _price
+            );
+            marketOffersNonce++;
     }
 
     /**
@@ -457,13 +499,14 @@ contract Marketplace is
      * @param _marketOfferId index of the saleOrder
      * @param _amount price of the offer
      * @param  _duration duration of the offer
-     * 
+     *
      * emits a {OfferSubmitted} event
      */
-    function makeOffer(uint256 _marketOfferId, uint _amount, uint _duration)
-        external
-        nonReentrant
-    {
+    function makeOffer(
+        uint256 _marketOfferId,
+        uint _amount,
+        uint _duration
+    ) external nonReentrant {
         require(_amount > 0, "amount can't be zero");
         if (marketOffers[_marketOfferId].closed) revert offerClosed(); ///Only if offer is still ongoing
         require(
@@ -487,29 +530,33 @@ contract Marketplace is
      *
      * Emits a {SaleSuccesful} event
      */
-    function acceptOffer(uint256 _marketOfferId, uint _index)       //ALERT: order price and bought at price are different
-        external
-        nonReentrant
-    {
+    function acceptOffer(
+        uint256 _marketOfferId,
+        uint _index //ALERT: order price and bought at price are different
+    ) external nonReentrant {
         SaleOrder storage order = marketOffers[_marketOfferId];
         Offer memory offer = order.offers[_index];
 
         if (order.seller != msg.sender) revert notOwner();
-        require(!order.closed, "sale is closed");           /// owner of the token - sale
+        require(!order.closed, "sale is closed"); /// owner of the token - sale
         require(_index < order.offers.length, "index out of bound");
-        require(block.timestamp < offer.offerTime + offer.duration, "offer expired");
-        require(WETH.balanceOf(offer.sender) > offer.offerPrice, "WETH: not enough balance");
+        require(
+            block.timestamp < offer.offerTime + offer.duration,
+            "offer expired"
+        );
+        require(
+            WETH.balanceOf(offer.sender) > offer.offerPrice,
+            "WETH: not enough balance"
+        );
         require(
             WETH.allowance(offer.sender, address(this)) >=
                 order.offers[_index].offerPrice,
             "not enough allowance"
         );
 
-        order.buyer = offer.sender;                                        /// update buyer
-        order.price = offer.offerPrice;                                    /// update sell price
-        order.closed = true;                                               /// offer is now over
-
-        
+        order.buyer = offer.sender; /// update buyer
+        order.price = offer.offerPrice; /// update sell price
+        order.closed = true; /// offer is now over
 
         if (
             ERC721(order.contractAddress).supportsInterface(
@@ -554,7 +601,12 @@ contract Marketplace is
         );
         if (!sent2) revert failedToSendEther();
 
-        emit SaleSuccessful(_marketOfferId, order.seller, order.buyer, offer.offerPrice);
+        emit SaleSuccessful(
+            _marketOfferId,
+            order.seller,
+            order.buyer,
+            offer.offerPrice
+        );
     }
 
     /**
@@ -563,9 +615,7 @@ contract Marketplace is
      *
      * Emits a {offerCanceled} event
      */
-    function cancelOffer(uint256 _marketOfferId, uint _index)
-        external
-    {
+    function cancelOffer(uint256 _marketOfferId, uint _index) external {
         require(
             msg.sender == marketOffers[_marketOfferId].offers[_index].sender,
             "not the offerer"
@@ -575,7 +625,7 @@ contract Marketplace is
             _marketOfferId
         ].offers[marketOffers[_marketOfferId].offers.length - 1];
         marketOffers[_marketOfferId].offers.pop();
-        
+
         emit OfferCanceled(_marketOfferId, msg.sender, 0);
     }
 
@@ -583,23 +633,38 @@ contract Marketplace is
     ///    INTERNAL
     /// ================================
 
-    function _isDouble(address _contractAddres, uint _tokenId) internal view returns (bool double){
-        
-        for(uint i = 1; i <= marketOffersNonce; ++i){
-            if(marketOffers[i].contractAddress == _contractAddres && marketOffers[i].tokenId == _tokenId) double = true;
+    function _isDouble(
+        address _contractAddres,
+        uint _tokenId
+    ) internal view returns (bool double) {
+        for (uint i = 1; i <= marketOffersNonce; ++i) {
+            if (
+                marketOffers[i].contractAddress == _contractAddres &&
+                marketOffers[i].tokenId == _tokenId &&
+                !marketOffers[i].closed
+            ) double = true;
         }
     }
 
     ///ALERT: for now only order of one ERC1155 token by one can be issued, but is several will need to count amounts;
-    function _hasEnough(address _contractAddres, uint _tokenId, address _creator) internal view returns (bool enough){
+    function _hasBalance(
+        address _contractAddres,
+        uint _tokenId,
+        address _creator
+    ) internal view returns (bool enough) {
         // uint[] memory ex_Orders;
         uint j;
-        for(uint i = 1; i <= marketOffersNonce; ++i){
-            if(marketOffers[i].contractAddress == _contractAddres && marketOffers[i].tokenId == _tokenId && marketOffers[i].seller == msg.sender) {
-                // ex_Orders[j] = i;
+        for (uint i = 1; i <= marketOffersNonce; ++i) {
+            if (
+                marketOffers[i].contractAddress == _contractAddres &&
+                marketOffers[i].tokenId == _tokenId &&
+                marketOffers[i].seller == msg.sender
+            ) {
                 j++;
-                }
-                ERC1155(_contractAddres).balanceOf(_creator, _tokenId) > j ? enough = true : enough = false;
+            }
+            ERC1155(_contractAddres).balanceOf(_creator, _tokenId) > j
+                ? enough = true
+                : enough = false;
         }
     }
 
@@ -610,20 +675,23 @@ contract Marketplace is
     /**
      * @notice allow a user to withdraw its balance if ETH was sent
      */
-        function withdrawEth() external{
-            uint amount = balanceOfEth[msg.sender];
-            delete balanceOfEth[msg.sender];
-            (bool success,) = msg.sender.call{value: amount}("");
-            require(success);
-        }
+    function withdrawEth() external {
+        uint amount = balanceOfEth[msg.sender];
+        delete balanceOfEth[msg.sender];
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success);
+    }
 
-        /**
-        * @notice security function to allow marketplace to send NFT.
-        */
-        function unlockNFT(address _contract, uint _tokenId, address _to ) external onlyOwner {
-                ERC721(_contract).safeTransferFrom(address(this), _to, _tokenId);
-        }
-
+    /**
+     * @notice security function to allow marketplace to send NFT.
+     */
+    function unlockNFT(
+        address _contract,
+        uint _tokenId,
+        address _to
+    ) external onlyOwner {
+        ERC721(_contract).safeTransferFrom(address(this), _to, _tokenId);
+    }
 
     /// ================================
     ///       Getters
@@ -633,11 +701,9 @@ contract Marketplace is
      * @notice               get all informations of a sale order by calling its id
      * @param _marketOfferId id of the sale
      */
-    function getSaleOrder(uint256 _marketOfferId)
-        external
-        view
-        returns (SaleOrder memory)
-    {
+    function getSaleOrder(
+        uint256 _marketOfferId
+    ) external view returns (SaleOrder memory) {
         return marketOffers[_marketOfferId];
     }
 
