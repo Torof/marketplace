@@ -9,6 +9,7 @@
 
 /// TODO: add security extension contract (NFT unlock, withdraw ETH ...)
 /// TODO: gas opti
+/// TODO: notOwner() messages
 
 /// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
@@ -57,7 +58,7 @@ contract MarketplaceCustodial is
 
     error failedToSendEther();
 
-    error notOwner();
+    error notOwner(string);
 
     error notEnoughBalance();
 
@@ -298,7 +299,7 @@ contract MarketplaceCustodial is
 
             ERC721 collection = ERC721(_contractAddress); ///collection address
 
-            if (collection.ownerOf(_tokenId) != msg.sender) revert notOwner(); ///creator must own NFT
+            if (collection.ownerOf(_tokenId) != msg.sender) revert notOwner(""); ///creator must own NFT
 
             collection.safeTransferFrom(msg.sender, address(this), _tokenId); ///Transfer NFT to marketplace contract for custody
 
@@ -310,7 +311,7 @@ contract MarketplaceCustodial is
         ) {
             ERC1155 collection = ERC1155(_contractAddress);
             if (collection.balanceOf(msg.sender, _tokenId) < 1)
-                revert notOwner();
+                revert notOwner("");
 
             collection.safeTransferFrom(
                 msg.sender,
@@ -359,47 +360,53 @@ contract MarketplaceCustodial is
      */
     function modifySale(uint256 _marketOfferId, uint256 _newPrice) external {
         if (msg.sender != marketOffers[_marketOfferId].seller)
-            revert notOwner();
+            revert notOwner("");
         marketOffers[_marketOfferId].price = _newPrice;
     }
 
+
+    ///CHECK: better to call supportsInterface or to use SaleOrder.standard ?
     /**
      * @notice               cancel a sale. Will refund last offer made
      * @param _marketOfferId index of the saleOrder
      */
     function cancelSale(uint256 _marketOfferId) external nonReentrant {
-        if (marketOffers[_marketOfferId].closed) revert offerClosed(); /// offer must still be ongoing to cancel
-        if (msg.sender != marketOffers[_marketOfferId].seller)
-            revert notOwner();
+        SaleOrder memory saleOrder = marketOffers[_marketOfferId];
+        if (saleOrder.closed) revert offerClosed(); /// offer must still be ongoing to cancel
+        if (msg.sender != saleOrder.seller)
+            revert notOwner("not owner");
 
         marketOffers[_marketOfferId].closed = true; /// sale is over
 
         if (
-            ERC721(marketOffers[_marketOfferId].contractAddress)
-                .supportsInterface(type(IERC721).interfaceId)
+            saleOrder.standard == type(IERC721).interfaceId
         ) {
-            ERC721(marketOffers[_marketOfferId].contractAddress)
+            ERC721(saleOrder.contractAddress)
                 .safeTransferFrom(
                     address(this),
                     msg.sender,
-                    marketOffers[_marketOfferId].tokenId
+                    saleOrder.tokenId
                 ); /// sale is canceled and erc721 NFt sent back to its owner
         } else if (
-            ERC1155(marketOffers[_marketOfferId].contractAddress)
-                .supportsInterface(type(IERC721).interfaceId)
+            saleOrder.standard == type(IERC1155).interfaceId
         ) {
-            ERC1155(marketOffers[_marketOfferId].contractAddress)
+            ERC1155(saleOrder.contractAddress)
                 .safeTransferFrom(
                     address(this),
                     msg.sender,
-                    marketOffers[_marketOfferId].tokenId,
+                    saleOrder.tokenId,
                     1,
                     ""
                 ); /// sale is canceled and erc1155 NFT sent back to its owner
         } else revert standardNotRecognized();
+
         emit SaleCanceled(_marketOfferId);
     }
 
+    //TODO: add a verification that the NFT is still available and not already sold or sent!
+    //TODO: verify seller is owner (same as above ?)
+    //TODO: verify is not a contract
+    //CHECK: use send or transfer over call ?
     /**
      *@notice               allows anyone to buy instantly a NFT at asked price.
      *@dev                  fees SHOULD be automatically soustracted and made offer MUST be refunded if present
@@ -506,7 +513,7 @@ contract MarketplaceCustodial is
         SaleOrder storage order = marketOffers[_marketOfferId];
         Offer memory offer = order.offers[_index];
 
-        if (order.seller != msg.sender) revert notOwner();
+        if (order.seller != msg.sender) revert notOwner("");
         require(!order.closed, "sale is closed"); /// owner of the token - sale
         require(_index < order.offers.length, "index out of bound");
         require(
