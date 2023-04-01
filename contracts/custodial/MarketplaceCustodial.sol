@@ -285,42 +285,24 @@ contract MarketplaceCustodial is
         uint256 _tokenId,
         uint256 _price
     ) external {
-        SaleOrder storage order = marketOffers[marketOffersNonce];
+        require(_price > 0, "price cannot be negative");
+        bytes4 standard;
 
         if (
             ERC721(_contractAddress).supportsInterface(
                 type(IERC721).interfaceId
             )
         ) {
-            bool double = _isDouble(_contractAddress, _tokenId);
+            bool double = _hasExistingSale(_contractAddress, _tokenId);
             require(!double, "already a sale");
-
-            (bool success1, bytes memory data) = _contractAddress.staticcall(
-                abi.encodeWithSignature("ownerOf(uint256)", _tokenId)
-            );
-            if (!success1) revert("non view detected");
-            address owner_ = abi.decode(data, (address));
-
-            if (owner_ != msg.sender) revert notOwner(); ///creator must own NFT
 
             ERC721 collection = ERC721(_contractAddress); ///collection address
 
-            order.contractAddress = _contractAddress; /// collection address
-            order.seller = msg.sender; /// seller address
-            order.price = _price; ///sale price
-            order.tokenId = _tokenId;
-            order.standard = type(IERC721).interfaceId; ///NFT's standard
+            if (collection.ownerOf(_tokenId) != msg.sender) revert notOwner(); ///creator must own NFT
 
-            collection.safeTransferFrom(msg.sender, address(this), _tokenId, ""); ///Transfer NFT to marketplace contract for custody
-            emit SaleCreated(
-                marketOffersNonce, ///id of the new offer
-                msg.sender, ///seller address
-                _tokenId,
-                _contractAddress,
-                type(IERC721).interfaceId,
-                _price
-            );
-            marketOffersNonce++;
+            collection.safeTransferFrom(msg.sender, address(this), _tokenId); ///Transfer NFT to marketplace contract for custody
+
+            standard = type(IERC721).interfaceId; ///NFT's standard
         } else if (
             ERC1155(_contractAddress).supportsInterface(
                 type(IERC1155).interfaceId
@@ -329,14 +311,6 @@ contract MarketplaceCustodial is
             ERC1155 collection = ERC1155(_contractAddress);
             if (collection.balanceOf(msg.sender, _tokenId) < 1)
                 revert notOwner();
-            bool hasEnough = _hasBalance(_contractAddress, _tokenId, msg.sender);
-            require(hasEnough, "not enough balance for new order");
-
-            order.contractAddress = _contractAddress; /// collection address
-            order.seller = msg.sender; /// seller address
-            order.price = _price; /// sale price
-            order.tokenId = _tokenId; /// id of the token (cannot be fungible in this case)
-            order.standard = type(IERC1155).interfaceId; /// NFT's standard
 
             collection.safeTransferFrom(
                 msg.sender,
@@ -345,42 +319,37 @@ contract MarketplaceCustodial is
                 1,
                 ""
             ); /// Transfer NFT to marketplace contract for custody
-            emit SaleCreated(
-                marketOffersNonce,
-                msg.sender,
-                _tokenId,
-                _contractAddress,
-                type(IERC1155).interfaceId,
-                _price
-            );
-            marketOffersNonce++;
+
+            standard = type(IERC1155).interfaceId; /// NFT's standard
         } else revert standardNotRecognized();
+
+        _createSale(_contractAddress, msg.sender, _tokenId, _price, standard);
     }
 
     function _createSale(
         address _contractAddress,
+        address _seller,
         uint256 _tokenId,
         uint256 _price,
-        bytes4 _standard) internal {
+        bytes4 _standard
+    ) internal {
+        SaleOrder storage order = marketOffers[marketOffersNonce];
 
-            SaleOrder storage order = marketOffers[marketOffersNonce];
+        order.contractAddress = _contractAddress; /// collection address
+        order.seller = _seller; /// seller address , cannot be msg.sender since internal
+        order.price = _price; ///sale price
+        order.tokenId = _tokenId;
+        order.standard = _standard; ///NFT's standard
 
-            order.contractAddress = _contractAddress; /// collection address
-            order.seller = msg.sender; /// seller address
-            order.price = _price; ///sale price
-            order.tokenId = _tokenId;
-            order.standard = _standard; ///NFT's standard
-
-            
-            emit SaleCreated(
-                marketOffersNonce, ///id of the new offer
-                msg.sender, ///seller address
-                _tokenId,
-                _contractAddress,
-                _standard,
-                _price
-            );
-            marketOffersNonce++;
+        emit SaleCreated(
+            marketOffersNonce, ///id of the new offer
+            _seller, ///seller address
+            _tokenId,
+            _contractAddress,
+            _standard,
+            _price
+        );
+        marketOffersNonce++;
     }
 
     /**
@@ -633,17 +602,21 @@ contract MarketplaceCustodial is
     ///    INTERNAL
     /// ================================
 
-    function _isDouble(
-        address _contractAddres,
-        uint _tokenId
-    ) internal view returns (bool double) {
-        for (uint i = 1; i <= marketOffersNonce; ++i) {
+    function _hasExistingSale(
+        address _contractAddress,
+        uint256 _tokenId
+    ) internal view returns (bool) {
+        for (uint256 i = 1; i <= marketOffersNonce; i++) {
+            SaleOrder storage saleOrder = marketOffers[i];
             if (
-                marketOffers[i].contractAddress == _contractAddres &&
-                marketOffers[i].tokenId == _tokenId &&
-                !marketOffers[i].closed
-            ) double = true;
+                saleOrder.contractAddress == _contractAddress &&
+                saleOrder.tokenId == _tokenId &&
+                !saleOrder.closed
+            ) {
+                return true;
+            }
         }
+        return false;
     }
 
     ///ALERT: for now only order of one ERC1155 token by one can be issued, but is several will need to count amounts;
