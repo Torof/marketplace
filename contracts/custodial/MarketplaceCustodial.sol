@@ -1,3 +1,8 @@
+/// TODO: add security extension contract (NFT unlock, withdraw ETH, onlyEOA modifier ...)
+/// TODO: gas opti
+/// TODO: notOwner() messages
+/// CHECK: if offer expired , delete offer ?
+
 /**
  *@author Torof
  *@title A custodial NFT MarketPlace
@@ -6,11 +11,6 @@
  *      Sender needs to have sufficiant WETH funds to submit offer.
  *      Showing the onGoing offers and not the expired offers must happen on the front-end.
  */
-
-/// TODO: add security extension contract (NFT unlock, withdraw ETH ...)
-/// TODO: gas opti
-/// TODO: notOwner() messages
-/// CHECK: if offer expired , delete offer ?
 
 /// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
@@ -282,7 +282,7 @@ contract MarketplaceCustodial is
         address _contractAddress,
         uint256 _tokenId,
         uint256 _price
-    ) external {
+    ) external nonReentrant {
         require(_price > 0, "price cannot be negative");
         bytes4 standard;
 
@@ -333,7 +333,7 @@ contract MarketplaceCustodial is
     }
 
     /**
-     * @notice               cancel a sale. Will refund last offer made
+     * @notice               cancel a sale.
      * @param _marketOfferId index of the saleOrder
      */
     function cancelSale(uint256 _marketOfferId) external nonReentrant {
@@ -366,7 +366,7 @@ contract MarketplaceCustodial is
     //CHECK: use send or transfer over call ?
     /**
      *@notice               allows anyone to buy instantly a NFT at asked price.
-     *@dev                  fees SHOULD be automatically soustracted and made offer MUST be refunded if present
+     *@dev                  fees SHOULD be automatically soustracted
      *@param _marketOfferId index of the saleOrder
      * emits a {SaleSuccesful} event
      */
@@ -456,8 +456,6 @@ contract MarketplaceCustodial is
         emit OfferSubmitted(_marketOfferId, msg.sender, _amount);
     }
 
-    //TODO: change supportsInterface verification to SaleOrder.standard verification
-    //TODO: refactor to add internal _acceptOfferERC721 and  _acceptOfferERC1155 ?
     /**
      * @notice               a third party made an offer below the asked price and seller accepts
      * @dev                  fees SHOULD be automatically soustracted
@@ -586,28 +584,6 @@ contract MarketplaceCustodial is
         marketOffersNonce++;
     }
 
-    // ///ALERT: for now only order of one ERC1155 token by one can be issued, but is several will need to count amounts;
-    // function _hasBalance(
-    //     address _contractAddres,
-    //     uint _tokenId,
-    //     address _creator
-    // ) internal view returns (bool enough) {
-    //     // uint[] memory ex_Orders;
-    //     uint j;
-    //     for (uint i = 1; i <= marketOffersNonce; ++i) {
-    //         if (
-    //             marketOffers[i].contractAddress == _contractAddres &&
-    //             marketOffers[i].tokenId == _tokenId &&
-    //             marketOffers[i].seller == msg.sender
-    //         ) {
-    //             j++;
-    //         }
-    //         ERC1155(_contractAddres).balanceOf(_creator, _tokenId) > j
-    //             ? enough = true
-    //             : enough = false;
-    //     }
-    // }
-
     /// ===============================
     ///         Security fallbacks
     /// ===============================
@@ -672,10 +648,28 @@ contract MarketplaceCustodial is
 
 // Potential DoS Attack: The getSaleOrder function could be used to consume a large amount of gas, potentially resulting in a DoS attack if an attacker repeatedly calls this function with a large number.
 
-// The _sellerIsOwner function could potentially be manipulated by malicious actors to bypass the ownership check. The function checks if the seller address is the owner of the NFT or has a balance of the ERC1155 token. However, the seller address could be a contract that has implemented the balanceOf or ownerOf functions to return a positive result for any address, which could result in a false positive and allow an unauthorized user to sell NFTs they don't own.
-
 // The _createSale function could potentially result in an unintended transfer of ownership of an NFT if the _seller address is not the owner of the NFT being sold. This can happen if the _seller address is not updated after an NFT transfer or if the _seller address is set to an arbitrary address that doesn't actually own the NFT. This can lead to unauthorized sales of NFTs.
 
-// The _hasExistingSale function uses a for loop to iterate through all previous sales in the marketOffers mapping. As the number of sales increases, this can result in the function consuming more and more gas, potentially leading to out-of-gas errors or other performance issues.
-
 // The onlyOwner modifier is used in some functions, but it is not defined in the contract. It is unclear who the owner is or how it is determined.
+
+    // ///ALERT: for now only order of one ERC1155 token by one can be issued, but is several will need to count amounts;
+    // function _hasBalance(
+    //     address _contractAddres,
+    //     uint _tokenId,
+    //     address _creator
+    // ) internal view returns (bool enough) {
+    //     // uint[] memory ex_Orders;
+    //     uint j;
+    //     for (uint i = 1; i <= marketOffersNonce; ++i) {
+    //         if (
+    //             marketOffers[i].contractAddress == _contractAddres &&
+    //             marketOffers[i].tokenId == _tokenId &&
+    //             marketOffers[i].seller == msg.sender
+    //         ) {
+    //             j++;
+    //         }
+    //         ERC1155(_contractAddres).balanceOf(_creator, _tokenId) > j
+    //             ? enough = true
+    //             : enough = false;
+    //     }
+    // }
