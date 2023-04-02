@@ -271,8 +271,6 @@ contract MarketplaceCustodial is
     ///      Main sale
     /// ==========================================
 
-    ///CHECK: one function createSale or several ? => createSaleERC721, createSaleERC1155, createSaleBatch1155
-    ///TODO: create internal function for create sale, 2 functions for ERC721 and ERC1155 createsale and one function regrouping the 2.
     /**
      * @notice                 opens a new sale of a single NFT. Supports {ERC721} and {ERC1155}. Compatible with {ERC721A}
      * @param _contractAddress the address of the NFT's contract
@@ -293,9 +291,6 @@ contract MarketplaceCustodial is
                 type(IERC721).interfaceId
             )
         ) {
-            bool double = _hasExistingSale(_contractAddress, _tokenId);
-            require(!double, "already a sale");
-
             ERC721 collection = ERC721(_contractAddress); ///collection address
 
             if (collection.ownerOf(_tokenId) != msg.sender) revert notOwner(""); ///creator must own NFT
@@ -344,11 +339,7 @@ contract MarketplaceCustodial is
     function cancelSale(uint256 _marketOfferId) external nonReentrant {
         SaleOrder memory saleOrder = marketOffers[_marketOfferId];
         if (saleOrder.closed) revert offerClosed(); /// offer must still be ongoing to cancel
-        if (msg.sender != saleOrder.seller) revert notOwner("not owner");
-        if (!_sellerIsOwner(saleOrder)) {
-            marketOffers[_marketOfferId].closed = true;
-            return;
-        }
+        if (msg.sender != saleOrder.seller) revert notOwner("caller is not owner");
 
         marketOffers[_marketOfferId].closed = true; /// sale is over
 
@@ -371,8 +362,6 @@ contract MarketplaceCustodial is
         emit SaleCanceled(_marketOfferId);
     }
 
-    //TODO: add a verification that the NFT is still available and not already sold or sent!
-    //TODO: verify seller is owner (same as above ?)
     //TODO: verify is not a contract
     //CHECK: use send or transfer over call ?
     /**
@@ -468,7 +457,6 @@ contract MarketplaceCustodial is
     }
 
     //TODO: change supportsInterface verification to SaleOrder.standard verification
-    //TODO: add verification that SaleOrder.seller still is the owner
     //TODO: refactor to add internal _acceptOfferERC721 and  _acceptOfferERC1155 ?
     /**
      * @notice               a third party made an offer below the asked price and seller accepts
@@ -485,7 +473,6 @@ contract MarketplaceCustodial is
         Offer memory offer = order.offers[_index];
 
         if (order.seller != msg.sender) revert notOwner("caller is not owner");
-        require(_sellerIsOwner(order), "seller is not owner"); //verifies that seller stills owns token
         require(!order.closed, "sale is closed"); /// owner of the token - sale
         require(_index < order.offers.length, "index out of bound");
         require(
@@ -599,65 +586,27 @@ contract MarketplaceCustodial is
         marketOffersNonce++;
     }
 
-    function _hasExistingSale(
-        address _contractAddress,
-        uint256 _tokenId
-    ) internal view returns (bool) {
-        for (uint256 i = 1; i <= marketOffersNonce; i++) {
-            SaleOrder storage saleOrder = marketOffers[i];
-            if (
-                saleOrder.contractAddress == _contractAddress &&
-                saleOrder.tokenId == _tokenId &&
-                !saleOrder.closed
-            ) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    ///ALERT: for now only order of one ERC1155 token by one can be issued, but is several will need to count amounts;
-    function _hasBalance(
-        address _contractAddres,
-        uint _tokenId,
-        address _creator
-    ) internal view returns (bool enough) {
-        // uint[] memory ex_Orders;
-        uint j;
-        for (uint i = 1; i <= marketOffersNonce; ++i) {
-            if (
-                marketOffers[i].contractAddress == _contractAddres &&
-                marketOffers[i].tokenId == _tokenId &&
-                marketOffers[i].seller == msg.sender
-            ) {
-                j++;
-            }
-            ERC1155(_contractAddres).balanceOf(_creator, _tokenId) > j
-                ? enough = true
-                : enough = false;
-        }
-    }
-
-    //CHECK: if SaleOrder.seller is not owner anymore change SaleOrder.closed to true ?
-    function _sellerIsOwner(
-        SaleOrder memory _order
-    ) internal view returns (bool) {
-        if (_order.standard == type(IERC721).interfaceId) {
-            if (
-                _order.seller ==
-                IERC721(_order.contractAddress).ownerOf(_order.tokenId)
-            ) return true;
-            else return false;
-        } else if (_order.standard == type(IERC1155).interfaceId) {
-            if (
-                IERC1155(_order.contractAddress).balanceOf(
-                    _order.seller,
-                    _order.tokenId
-                ) > 0
-            ) return true;
-            else return false;
-        } else return false;
-    }
+    // ///ALERT: for now only order of one ERC1155 token by one can be issued, but is several will need to count amounts;
+    // function _hasBalance(
+    //     address _contractAddres,
+    //     uint _tokenId,
+    //     address _creator
+    // ) internal view returns (bool enough) {
+    //     // uint[] memory ex_Orders;
+    //     uint j;
+    //     for (uint i = 1; i <= marketOffersNonce; ++i) {
+    //         if (
+    //             marketOffers[i].contractAddress == _contractAddres &&
+    //             marketOffers[i].tokenId == _tokenId &&
+    //             marketOffers[i].seller == msg.sender
+    //         ) {
+    //             j++;
+    //         }
+    //         ERC1155(_contractAddres).balanceOf(_creator, _tokenId) > j
+    //             ? enough = true
+    //             : enough = false;
+    //     }
+    // }
 
     /// ===============================
     ///         Security fallbacks
