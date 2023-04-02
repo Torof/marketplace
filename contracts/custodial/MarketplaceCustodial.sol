@@ -10,6 +10,7 @@
 /// TODO: add security extension contract (NFT unlock, withdraw ETH ...)
 /// TODO: gas opti
 /// TODO: notOwner() messages
+/// CHECK: if offer expired , delete offer ?
 
 /// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
@@ -63,8 +64,6 @@ contract MarketplaceCustodial is
     error notEnoughBalance();
 
     error standardNotRecognized();
-
-    event testEvent(address msgsender, address txorigin, address contractA);
 
     /**
      *@notice Emitted when a NFT is received
@@ -327,32 +326,6 @@ contract MarketplaceCustodial is
         _createSale(_contractAddress, msg.sender, _tokenId, _price, standard);
     }
 
-    function _createSale(
-        address _contractAddress,
-        address _seller,
-        uint256 _tokenId,
-        uint256 _price,
-        bytes4 _standard
-    ) internal {
-        SaleOrder storage order = marketOffers[marketOffersNonce];
-
-        order.contractAddress = _contractAddress; /// collection address
-        order.seller = _seller; /// seller address , cannot be msg.sender since internal
-        order.price = _price; ///sale price
-        order.tokenId = _tokenId;
-        order.standard = _standard; ///NFT's standard
-
-        emit SaleCreated(
-            marketOffersNonce, ///id of the new offer
-            _seller, ///seller address
-            _tokenId,
-            _contractAddress,
-            _standard,
-            _price
-        );
-        marketOffersNonce++;
-    }
-
     /**
      * @notice               modify the sale's price
      * @param _marketOfferId index of the saleOrder
@@ -496,6 +469,7 @@ contract MarketplaceCustodial is
 
     //TODO: change supportsInterface verification to SaleOrder.standard verification
     //TODO: add verification that SaleOrder.seller still is the owner
+    //TODO: refactor to add internal _acceptOfferERC721 and  _acceptOfferERC1155 ?
     /**
      * @notice               a third party made an offer below the asked price and seller accepts
      * @dev                  fees SHOULD be automatically soustracted
@@ -510,7 +484,8 @@ contract MarketplaceCustodial is
         SaleOrder storage order = marketOffers[_marketOfferId];
         Offer memory offer = order.offers[_index];
 
-        if (order.seller != msg.sender) revert notOwner("");
+        if (order.seller != msg.sender) revert notOwner("caller is not owner");
+        require(_sellerIsOwner(order), "seller is not owner"); //verifies that seller stills owns token
         require(!order.closed, "sale is closed"); /// owner of the token - sale
         require(_index < order.offers.length, "index out of bound");
         require(
@@ -597,6 +572,32 @@ contract MarketplaceCustodial is
     /// ================================
     ///    INTERNAL
     /// ================================
+
+    function _createSale(
+        address _contractAddress,
+        address _seller,
+        uint256 _tokenId,
+        uint256 _price,
+        bytes4 _standard
+    ) internal {
+        SaleOrder storage order = marketOffers[marketOffersNonce];
+
+        order.contractAddress = _contractAddress; /// collection address
+        order.seller = _seller; /// seller address , cannot be msg.sender since internal
+        order.price = _price; ///sale price
+        order.tokenId = _tokenId;
+        order.standard = _standard; ///NFT's standard
+
+        emit SaleCreated(
+            marketOffersNonce, ///id of the new offer
+            _seller, ///seller address
+            _tokenId,
+            _contractAddress,
+            _standard,
+            _price
+        );
+        marketOffersNonce++;
+    }
 
     function _hasExistingSale(
         address _contractAddress,
@@ -711,3 +712,21 @@ contract MarketplaceCustodial is
         return wethFees;
     }
 }
+
+// Reentrancy: The contract doesn't seem to protect against reentrancy attacks in the buy function. It's important to prevent a malicious user from being able to re-enter the buy function before it has finished executing.
+
+// Integer Overflow/Underflow: There are several places where integer overflow/underflow could occur. For example, in the _createSale function, the marketOffersNonce variable is incremented without checking if it has already reached its maximum value. This could result in an integer overflow. Similarly, in the buy function, the contract should check that the amount sent by the buyer is greater than or equal to the sale price, to avoid integer underflows.
+
+// Lack of Access Controls: The unlockNFT function can be called by anyone, which could be a potential security issue if it's not intended to be publicly accessible.
+
+// Lack of Input Validation: There's no input validation in the _hasBalance function, which could allow a malicious user to pass invalid inputs that could cause unexpected behavior in the function.
+
+// Potential DoS Attack: The getSaleOrder function could be used to consume a large amount of gas, potentially resulting in a DoS attack if an attacker repeatedly calls this function with a large number.
+
+// The _sellerIsOwner function could potentially be manipulated by malicious actors to bypass the ownership check. The function checks if the seller address is the owner of the NFT or has a balance of the ERC1155 token. However, the seller address could be a contract that has implemented the balanceOf or ownerOf functions to return a positive result for any address, which could result in a false positive and allow an unauthorized user to sell NFTs they don't own.
+
+// The _createSale function could potentially result in an unintended transfer of ownership of an NFT if the _seller address is not the owner of the NFT being sold. This can happen if the _seller address is not updated after an NFT transfer or if the _seller address is set to an arbitrary address that doesn't actually own the NFT. This can lead to unauthorized sales of NFTs.
+
+// The _hasExistingSale function uses a for loop to iterate through all previous sales in the marketOffers mapping. As the number of sales increases, this can result in the function consuming more and more gas, potentially leading to out-of-gas errors or other performance issues.
+
+// The onlyOwner modifier is used in some functions, but it is not defined in the contract. It is unclear who the owner is or how it is determined.
