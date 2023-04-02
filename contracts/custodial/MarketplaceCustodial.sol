@@ -364,8 +364,6 @@ contract MarketplaceCustodial is
         marketOffers[_marketOfferId].price = _newPrice;
     }
 
-
-    ///CHECK: better to call supportsInterface or to use SaleOrder.standard ?
     /**
      * @notice               cancel a sale. Will refund last offer made
      * @param _marketOfferId index of the saleOrder
@@ -373,31 +371,28 @@ contract MarketplaceCustodial is
     function cancelSale(uint256 _marketOfferId) external nonReentrant {
         SaleOrder memory saleOrder = marketOffers[_marketOfferId];
         if (saleOrder.closed) revert offerClosed(); /// offer must still be ongoing to cancel
-        if (msg.sender != saleOrder.seller)
-            revert notOwner("not owner");
+        if (msg.sender != saleOrder.seller) revert notOwner("not owner");
+        if (!_sellerIsOwner(saleOrder)) {
+            marketOffers[_marketOfferId].closed = true;
+            return;
+        }
 
         marketOffers[_marketOfferId].closed = true; /// sale is over
 
-        if (
-            saleOrder.standard == type(IERC721).interfaceId
-        ) {
-            ERC721(saleOrder.contractAddress)
-                .safeTransferFrom(
-                    address(this),
-                    msg.sender,
-                    saleOrder.tokenId
-                ); /// sale is canceled and erc721 NFt sent back to its owner
-        } else if (
-            saleOrder.standard == type(IERC1155).interfaceId
-        ) {
-            ERC1155(saleOrder.contractAddress)
-                .safeTransferFrom(
-                    address(this),
-                    msg.sender,
-                    saleOrder.tokenId,
-                    1,
-                    ""
-                ); /// sale is canceled and erc1155 NFT sent back to its owner
+        if (saleOrder.standard == type(IERC721).interfaceId) {
+            ERC721(saleOrder.contractAddress).safeTransferFrom(
+                address(this),
+                msg.sender,
+                saleOrder.tokenId
+            ); /// sale is canceled and erc721 NFt sent back to its owner
+        } else if (saleOrder.standard == type(IERC1155).interfaceId) {
+            ERC1155(saleOrder.contractAddress).safeTransferFrom(
+                address(this),
+                msg.sender,
+                saleOrder.tokenId,
+                1,
+                ""
+            ); /// sale is canceled and erc1155 NFT sent back to its owner
         } else revert standardNotRecognized();
 
         emit SaleCanceled(_marketOfferId);
@@ -499,6 +494,8 @@ contract MarketplaceCustodial is
         emit OfferSubmitted(_marketOfferId, msg.sender, _amount);
     }
 
+    //TODO: change supportsInterface verification to SaleOrder.standard verification
+    //TODO: add verification that SaleOrder.seller still is the owner
     /**
      * @notice               a third party made an offer below the asked price and seller accepts
      * @dev                  fees SHOULD be automatically soustracted
@@ -534,21 +531,13 @@ contract MarketplaceCustodial is
         order.price = offer.offerPrice; /// update sell price
         order.closed = true; /// offer is now over
 
-        if (
-            ERC721(order.contractAddress).supportsInterface(
-                type(IERC721).interfaceId
-            )
-        )
+        if (order.standard == type(IERC721).interfaceId)
             ERC721(order.contractAddress).safeTransferFrom(
                 address(this),
                 order.buyer,
                 order.tokenId
             ); /// transfer NFT to new owner
-        else if (
-            ERC1155(order.contractAddress).supportsInterface(
-                type(IERC1155).interfaceId
-            )
-        )
+        else if (order.standard == type(IERC1155).interfaceId)
             ERC1155(order.contractAddress).safeTransferFrom(
                 address(this),
                 msg.sender,
@@ -646,6 +635,27 @@ contract MarketplaceCustodial is
                 ? enough = true
                 : enough = false;
         }
+    }
+
+    //CHECK: if SaleOrder.seller is not owner anymore change SaleOrder.closed to true ?
+    function _sellerIsOwner(
+        SaleOrder memory _order
+    ) internal view returns (bool) {
+        if (_order.standard == type(IERC721).interfaceId) {
+            if (
+                _order.seller ==
+                IERC721(_order.contractAddress).ownerOf(_order.tokenId)
+            ) return true;
+            else return false;
+        } else if (_order.standard == type(IERC1155).interfaceId) {
+            if (
+                IERC1155(_order.contractAddress).balanceOf(
+                    _order.seller,
+                    _order.tokenId
+                ) > 0
+            ) return true;
+            else return false;
+        } else return false;
     }
 
     /// ===============================
