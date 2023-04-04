@@ -3,6 +3,32 @@
 pragma solidity ^0.8.19;
 
 contract MarketPlaceNonCustodial {
+
+
+    function setFees() external {}
+
+    function withdrawEthFees() external {}
+
+    function withdrawWethFees() external {}
+
+    function createSale() external {}
+
+    function buySale() external {}
+
+    function modifySale() external {}
+
+    function cancelSale() external {}
+
+    function createOffer() external {}
+
+    function acceptOffer() external {}
+
+    function modifyOffer() external {}
+
+    function cancelOffer() external {}
+
+    function getSaleOrder() public view returns (bool){}
+
     // function _hasExistingSale(
     //     address _contractAddress,
     //     uint256 _tokenId

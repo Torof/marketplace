@@ -1,4 +1,4 @@
-/// TODO: add security extension contract (NFT unlock, withdraw ETH, onlyEOA modifier ...)
+/// TODO: add security extension contract (NFT unlock, withdraw ETH, onlyEOA ...)
 /// TODO: gas opti
 /// TODO: notOwner() messages
 /// CHECK: if offer expired , delete offer ?
@@ -33,7 +33,7 @@ contract MarketplaceCustodial is
     uint256 private ethFees; /// All the fees gathered by the markeplace
     uint256 private wethFees;
     uint256 public marketPlaceFee; /// percentage of the fee. starts at 0, cannot be more than 10
-    ERC20 public immutable WETH;
+    ERC20 public constant WETH = ERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     mapping(uint256 => SaleOrder) public marketOffers;
     mapping(address => uint256) public balanceOfEth;
 
@@ -130,9 +130,9 @@ contract MarketplaceCustodial is
         uint canceledOffer
     );
 
-    constructor(address _WETH) {
-        WETH = ERC20(_WETH);
-    }
+    // constructor(address _WETH) {
+    //     WETH = ERC20(_WETH);
+    // }
 
     /// ==========================================
     ///    Receive & support interfaces
@@ -435,7 +435,7 @@ contract MarketplaceCustodial is
      *
      * emits a {OfferSubmitted} event
      */
-    function makeOffer(
+    function createOffer(
         uint256 _marketOfferId,
         uint _amount,
         uint _duration
@@ -534,6 +534,8 @@ contract MarketplaceCustodial is
         );
     }
 
+    function modifyOffer() external {}
+
     /**
      * @notice               cancel an offer made.
      * @param _marketOfferId id of the sale
@@ -606,6 +608,7 @@ contract MarketplaceCustodial is
         uint _tokenId,
         address _to
     ) external onlyOwner {
+        require(address(this) == ERC721(_contract).ownerOf(_tokenId), "contract is not owner");
         ERC721(_contract).safeTransferFrom(address(this), _to, _tokenId);
     }
 
